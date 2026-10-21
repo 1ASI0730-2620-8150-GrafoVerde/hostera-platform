@@ -1,0 +1,23 @@
+# Archivos generados al compilar
+[Bb]in/
+[Oo]bj/
+
+# Configuración personal de los IDE
+.idea/
+.vs/
+*.user
+*.suo
+*.sln.iml
+
+# Variables de entorno y secretos locales
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+
+# Resultados de pruebas
+TestResults/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
