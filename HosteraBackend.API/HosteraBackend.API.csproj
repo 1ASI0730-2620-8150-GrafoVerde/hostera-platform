@@ -25,4 +25,11 @@
         <PackageReference Include="Humanizer" Version="3.0.10"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Inventory\Domain\Model\Aggregates\" />
+      <Folder Include="Inventory\Domain\Model\Commands\" />
+      <Folder Include="Inventory\Domain\Model\Queries\" />
+      <Folder Include="Inventory\Domain\Model\ValueObjects\" />
+    </ItemGroup>
+
 </Project>
