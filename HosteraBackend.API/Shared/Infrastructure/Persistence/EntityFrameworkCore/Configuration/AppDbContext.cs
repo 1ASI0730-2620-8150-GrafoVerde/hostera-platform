@@ -1,5 +1,5 @@
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
-using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Interceptors;
+using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Interceptors;
 using Microsoft.EntityFrameworkCore;
 namespace HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 
