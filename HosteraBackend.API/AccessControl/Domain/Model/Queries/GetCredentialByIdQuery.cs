@@ -1,7 +1,7 @@
 namespace HosteraBackend.API.AccessControl.Domain.Model.Queries;
 
 /// <summary>
-///     Query to get an RFID credential by ID
+///     Query to get a credential by ID
 /// </summary>
 /// <param name="Id">The credential ID to search</param>
-public record GetRfidCredentialByIdQuery(int Id);
+public record GetCredentialByIdQuery(int Id);
