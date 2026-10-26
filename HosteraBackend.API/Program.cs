@@ -1,3 +1,9 @@
+using HosteraBackend.API.AccessControl.Application.CommandServices;
+using HosteraBackend.API.AccessControl.Application.Internal.CommandServices;
+using HosteraBackend.API.AccessControl.Application.Internal.QueryServices;
+using HosteraBackend.API.AccessControl.Application.QueryServices;
+using HosteraBackend.API.AccessControl.Domain.Repositories;
+using HosteraBackend.API.AccessControl.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Inventory.Application.CommandServices;
 using HosteraBackend.API.Inventory.Application.Internal.CommandServices;
 using HosteraBackend.API.Inventory.Application.Internal.QueryServices;
@@ -65,6 +71,13 @@ builder.Services.AddScoped<IStorageLocationCommandService, StorageLocationComman
 builder.Services.AddScoped<IStorageLocationQueryService, StorageLocationQueryService>();
 builder.Services.AddScoped<IInventoryItemCommandService, InventoryItemCommandService>();
 builder.Services.AddScoped<IInventoryItemQueryService, InventoryItemQueryService>();
+
+// Access Control Bounded Context
+builder.Services.AddScoped<ICredentialRepository, CredentialRepository>();
+builder.Services.AddScoped<IStaffMemberRepository, StaffMemberRepository>();
+builder.Services.AddScoped<ICredentialCommandService, CredentialCommandService>();
+builder.Services.AddScoped<ICredentialQueryService, CredentialQueryService>();
+builder.Services.AddScoped<IStaffMemberQueryService, StaffMemberQueryService>();
 
 var app = builder.Build();
 
