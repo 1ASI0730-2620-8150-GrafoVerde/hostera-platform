@@ -1,3 +1,4 @@
+using HosteraBackend.API.AccessControl.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using HosteraBackend.API.Inventory.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Interceptors;
@@ -18,6 +19,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         // Inventory Bounded Context
         builder.ApplyInventoryConfiguration();
+
+        // Access Control Bounded Context
+        builder.ApplyAccessControlConfiguration();
 
         builder.UseSnakeCaseNamingConvention();
     }
