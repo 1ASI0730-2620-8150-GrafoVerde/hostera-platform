@@ -10,11 +10,24 @@ namespace HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCor
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    ///     Applies the mapping of rate plans and daily rates.
+    ///     Applies the mapping of properties, rate plans and daily rates.
     /// </summary>
     /// <param name="builder">The model builder of the application context.</param>
     public static void ApplyRoomsConfiguration(this ModelBuilder builder)
     {
+        builder.Entity<Property>(property =>
+        {
+            property.HasKey(p => p.Id);
+            property.Property(p => p.Id).IsRequired().ValueGeneratedOnAdd();
+            property.Property(p => p.OrganizationId).IsRequired();
+            property.Property(p => p.Name).IsRequired().HasMaxLength(80);
+            property.Property(p => p.City).IsRequired().HasMaxLength(80);
+            property.Property(p => p.Currency).IsRequired().HasColumnType("char(3)");
+            property.HasData(
+                new { Id = 1, OrganizationId = 1, Name = "Cartagena 04", City = "Cartagena", Currency = "PEN" },
+                new { Id = 2, OrganizationId = 1, Name = "Lima 01", City = "Lima", Currency = "PEN" });
+        });
+
         builder.Entity<RatePlan>(ratePlan =>
         {
             ratePlan.HasKey(r => r.Id);
