@@ -2,6 +2,7 @@ using System.Net.Mime;
 using HosteraBackend.API.Inventory.Application.CommandServices;
 using HosteraBackend.API.Inventory.Application.Errors;
 using HosteraBackend.API.Inventory.Application.QueryServices;
+using HosteraBackend.API.Inventory.Domain.Model.Commands;
 using HosteraBackend.API.Inventory.Domain.Model.Queries;
 using HosteraBackend.API.Inventory.Interfaces.Rest.Resources;
 using HosteraBackend.API.Inventory.Interfaces.Rest.Transform;
@@ -85,5 +86,22 @@ public class InventoryItemsController(
         {
             return InventoryActionResultAssembler.ToActionResultFromInvalidResource(this, exception);
         }
+    }
+
+    [HttpDelete("{inventoryItemId:int}/stocks/{storageLocationId:int}")]
+    [EndpointSummary("Remove a storage location from an inventory item")]
+    [EndpointDescription(
+        "Remove an empty secondary storage location from an inventory item. The primary location cannot be removed")]
+    [ProducesResponseType(typeof(InventoryItemResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UnassignStorageLocation([FromRoute] int inventoryItemId,
+        [FromRoute] int storageLocationId, CancellationToken cancellationToken)
+    {
+        var command = new UnassignStorageLocationCommand(inventoryItemId, storageLocationId);
+        var result = await inventoryItemCommandService.Handle(command, cancellationToken);
+
+        return InventoryActionResultAssembler.ToActionResultFromResult(this, result,
+            updated => Ok(InventoryItemResourceFromEntityAssembler.ToResourceFromEntity(updated)));
     }
 }
