@@ -149,6 +149,38 @@ public partial class InventoryItem
     }
 
     /// <summary>
+    ///     Indicates whether the item has a stock record in a storage location.
+    /// </summary>
+    /// <param name="storageLocationId">The identifier of the storage location.</param>
+    /// <returns>True when the item is assigned to the location.</returns>
+    public bool IsAssignedTo(int storageLocationId) =>
+        _stocks.Any(stock => stock.StorageLocationId == storageLocationId);
+
+    /// <summary>
+    ///     Removes an empty secondary storage location from this item.
+    /// </summary>
+    /// <param name="command">The UnassignStorageLocationCommand command</param>
+    /// <exception cref="ArgumentException">Thrown when the item is not assigned to the location.</exception>
+    /// <exception cref="InvalidOperationException">
+    ///     Thrown when the location is the primary location or still keeps stock of the item.
+    /// </exception>
+    public void UnassignStorageLocation(UnassignStorageLocationCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var stock = _stocks.FirstOrDefault(s => s.StorageLocationId == command.StorageLocationId)
+                    ?? throw new ArgumentException("The item is not assigned to the location.", nameof(command));
+
+        if (command.StorageLocationId == PrimaryLocationId)
+            throw new InvalidOperationException("The primary location of an item cannot be removed.");
+
+        if (stock.Quantity != 0)
+            throw new InvalidOperationException("A location that keeps stock of the item cannot be removed.");
+
+        _stocks.Remove(stock);
+    }
+
+    /// <summary>
     ///     Records stock entering, leaving or moving between storage locations.
     /// </summary>
     /// <param name="command">The AdjustStockCommand command</param>
