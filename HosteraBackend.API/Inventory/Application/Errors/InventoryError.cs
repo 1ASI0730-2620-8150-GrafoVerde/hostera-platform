@@ -41,6 +41,16 @@ public enum InventoryError
 	StorageLocationInUse,
 
 	/// <summary>
+	/// The inventory item is not assigned to the storage location.
+	/// </summary>
+	StorageLocationNotAssigned,
+
+	/// <summary>
+	/// The storage location cannot be removed from the item because it is the primary location or keeps stock.
+	/// </summary>
+	StorageLocationAssignmentInUse,
+
+	/// <summary>
 	/// The unit of the item cannot change because it already has stock adjustments.
 	/// </summary>
 	UnitChangeNotAllowed,

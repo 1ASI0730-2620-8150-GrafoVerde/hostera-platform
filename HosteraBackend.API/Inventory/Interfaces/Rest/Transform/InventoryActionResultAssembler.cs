@@ -17,6 +17,8 @@ public static class InventoryActionResultAssembler
         InventoryError.DuplicateStorageLocationCode => StatusCodes.Status409Conflict,
         InventoryError.DuplicateInventoryItemCode => StatusCodes.Status409Conflict,
         InventoryError.StorageLocationInUse => StatusCodes.Status409Conflict,
+        InventoryError.StorageLocationNotAssigned => StatusCodes.Status404NotFound,
+        InventoryError.StorageLocationAssignmentInUse => StatusCodes.Status409Conflict,
         InventoryError.InsufficientStock => StatusCodes.Status409Conflict,
         InventoryError.UnitChangeNotAllowed => StatusCodes.Status409Conflict,
         InventoryError.UnexpectedError => StatusCodes.Status500InternalServerError,
@@ -34,6 +36,9 @@ public static class InventoryActionResultAssembler
         InventoryError.DuplicateInventoryItemCode => "Another inventory item of the property uses the same code.",
         InventoryError.StorageLocationInUse =>
             "The storage location cannot be deleted while inventory items are assigned to it.",
+        InventoryError.StorageLocationNotAssigned => "The inventory item is not assigned to the storage location.",
+        InventoryError.StorageLocationAssignmentInUse =>
+            "The primary location, or a location that keeps stock of the item, cannot be removed from it.",
         InventoryError.UnitChangeNotAllowed => "The unit of the item cannot change after its first stock adjustment.",
         InventoryError.InvalidAdjustmentReason =>
             "The reason is not valid for the operation, or the note required by the other reason is missing.",
