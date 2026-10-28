@@ -25,4 +25,8 @@
         <PackageReference Include="Humanizer" Version="3.0.10"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Shared\Domain\Repositories\" />
+    </ItemGroup>
+
 </Project>
