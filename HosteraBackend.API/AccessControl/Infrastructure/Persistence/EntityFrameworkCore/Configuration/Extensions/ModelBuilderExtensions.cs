@@ -10,7 +10,7 @@ namespace HosteraBackend.API.AccessControl.Infrastructure.Persistence.EntityFram
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    ///     Applies the mapping of credentials and staff members.
+    ///     Applies the mapping of credentials, staff members and access events.
     /// </summary>
     /// <param name="builder">The model builder of the application context.</param>
     public static void ApplyAccessControlConfiguration(this ModelBuilder builder)
@@ -75,6 +75,29 @@ public static class ModelBuilderExtensions
                 revocation.Property(r => r.At).HasColumnName("revoked_at").IsRequired();
                 revocation.Property(r => r.OperatorId).HasColumnName("revoked_by").IsRequired();
             });
+        });
+
+        builder.Entity<AccessEvent>(accessEvent =>
+        {
+            accessEvent.HasKey(e => e.Id);
+            accessEvent.Property(e => e.Id).IsRequired().ValueGeneratedOnAdd();
+            accessEvent.Property(e => e.PropertyId).IsRequired();
+            accessEvent.Property(e => e.CardId)
+                .HasConversion(cardId => cardId.Value, value => new CardId(value))
+                .IsRequired()
+                .HasMaxLength(4);
+            accessEvent.Property(e => e.HolderType).HasConversion<string>().IsRequired().HasMaxLength(10);
+            accessEvent.Property(e => e.HolderName).IsRequired().HasMaxLength(80);
+            accessEvent.Property(e => e.AccessPoint).HasConversion<string>().IsRequired().HasMaxLength(20);
+            accessEvent.Property(e => e.Result).HasConversion<string>().IsRequired().HasMaxLength(10);
+            accessEvent.Property(e => e.DenialReason).HasConversion<string>().HasMaxLength(20);
+            accessEvent.Property(e => e.OccurredAt).IsRequired();
+            accessEvent.HasIndex(e => new { e.PropertyId, e.OccurredAt });
+
+            accessEvent.HasOne<Credential>()
+                .WithMany()
+                .HasForeignKey(e => e.CredentialId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
