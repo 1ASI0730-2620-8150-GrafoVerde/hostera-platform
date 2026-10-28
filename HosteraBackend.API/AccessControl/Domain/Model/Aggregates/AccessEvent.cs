@@ -30,7 +30,7 @@ public partial class AccessEvent
     /// <param name="command">The RecordAccessEventCommand command</param>
     /// <param name="credential">The Credential written to the presented card</param>
     /// <exception cref="ArgumentNullException">Thrown when the command, card identifier or credential is null.</exception>
-    /// <exception cref="ArgumentException">Thrown when the credential belongs to another property or card.</exception>
+    /// <exception cref="ArgumentException">Thrown when the credential belongs to another property or card, or a room door reader reports no room.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when an identifier is not positive.</exception>
     public AccessEvent(RecordAccessEventCommand command, Credential credential)
     {
@@ -40,6 +40,9 @@ public partial class AccessEvent
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.PropertyId);
         if (command.RoomId is { } roomId)
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(roomId, nameof(command.RoomId));
+
+        if (command.AccessPoint == EAccessPoint.RoomDoor && command.RoomId is null)
+            throw new ArgumentException("A room door reader must report its room.", nameof(command));
 
         if (credential.PropertyId != command.PropertyId || credential.CardId != command.CardId)
             throw new ArgumentException("The credential does not belong to the presented card.", nameof(credential));
