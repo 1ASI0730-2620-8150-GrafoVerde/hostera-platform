@@ -84,6 +84,9 @@ builder.Services.AddScoped<IStaffMemberRepository, StaffMemberRepository>();
 builder.Services.AddScoped<ICredentialCommandService, CredentialCommandService>();
 builder.Services.AddScoped<ICredentialQueryService, CredentialQueryService>();
 builder.Services.AddScoped<IStaffMemberQueryService, StaffMemberQueryService>();
+builder.Services.AddScoped<IAccessEventRepository, AccessEventRepository>();
+builder.Services.AddScoped<IAccessEventCommandService, AccessEventCommandService>();
+builder.Services.AddScoped<IAccessEventQueryService, AccessEventQueryService>();
 
 // Rooms Bounded Context
 builder.Services.AddScoped<IRatePlanRepository, RatePlanRepository>();
