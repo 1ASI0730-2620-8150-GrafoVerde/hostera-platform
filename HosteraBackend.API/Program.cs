@@ -10,6 +10,11 @@ using HosteraBackend.API.Inventory.Application.Internal.QueryServices;
 using HosteraBackend.API.Inventory.Application.QueryServices;
 using HosteraBackend.API.Inventory.Domain.Repositories;
 using HosteraBackend.API.Inventory.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Overview.Application.Internal.OutboundServices.ACL;
+using HosteraBackend.API.Overview.Application.Internal.QueryServices;
+using HosteraBackend.API.Overview.Application.QueryServices;
+using HosteraBackend.API.Overview.Domain.Repositories;
+using HosteraBackend.API.Overview.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Rooms.Application.CommandServices;
 using HosteraBackend.API.Rooms.Application.Internal.CommandServices;
 using HosteraBackend.API.Rooms.Application.Internal.QueryServices;
@@ -95,6 +100,13 @@ builder.Services.AddScoped<IRatePlanCommandService, RatePlanCommandService>();
 builder.Services.AddScoped<IRatePlanQueryService, RatePlanQueryService>();
 builder.Services.AddScoped<IPropertyRepository, PropertyRepository>();
 builder.Services.AddScoped<IPropertyQueryService, PropertyQueryService>();
+
+// Overview Bounded Context
+builder.Services.AddScoped<IOverviewReadRepository, OverviewReadRepository>();
+builder.Services.AddScoped<ExternalPropertyService>();
+builder.Services.AddScoped<ExternalInventoryService>();
+builder.Services.AddScoped<ExternalAccessControlService>();
+builder.Services.AddScoped<IOverviewQueryService, OverviewQueryService>();
 
 var app = builder.Build();
 
