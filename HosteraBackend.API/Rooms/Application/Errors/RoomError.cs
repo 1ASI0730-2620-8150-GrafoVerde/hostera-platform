@@ -23,5 +23,25 @@ public enum RoomError
 	/// <summary>
 	/// Another room type of the property already uses the name.
 	/// </summary>
-	DuplicateRoomTypeName
+	DuplicateRoomTypeName,
+
+	/// <summary>
+	/// The requested room does not exist.
+	/// </summary>
+	RoomNotFound,
+
+	/// <summary>
+	/// Another room of the property already uses the number.
+	/// </summary>
+	DuplicateRoomNumber,
+
+	/// <summary>
+	/// The room type belongs to a different property than the room.
+	/// </summary>
+	RoomTypeFromAnotherProperty,
+
+	/// <summary>
+	/// The room type is inactive, so new rooms cannot be assigned to it.
+	/// </summary>
+	InactiveRoomType
 }
