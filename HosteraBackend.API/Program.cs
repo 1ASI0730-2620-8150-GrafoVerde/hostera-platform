@@ -100,6 +100,9 @@ builder.Services.AddScoped<IRatePlanCommandService, RatePlanCommandService>();
 builder.Services.AddScoped<IRatePlanQueryService, RatePlanQueryService>();
 builder.Services.AddScoped<IPropertyRepository, PropertyRepository>();
 builder.Services.AddScoped<IPropertyQueryService, PropertyQueryService>();
+builder.Services.AddScoped<IRoomTypeRepository, RoomTypeRepository>();
+builder.Services.AddScoped<IRoomTypeCommandService, RoomTypeCommandService>();
+builder.Services.AddScoped<IRoomTypeQueryService, RoomTypeQueryService>();
 
 // Overview Bounded Context
 builder.Services.AddScoped<IOverviewReadRepository, OverviewReadRepository>();
