@@ -10,7 +10,7 @@ namespace HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCor
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    ///     Applies the mapping of properties, room types, rate plans and daily rates.
+    ///     Applies the mapping of properties, room types, rooms, rate plans and daily rates.
     /// </summary>
     /// <param name="builder">The model builder of the application context.</param>
     public static void ApplyRoomsConfiguration(this ModelBuilder builder)
@@ -40,6 +40,23 @@ public static class ModelBuilderExtensions
             roomType.Property(r => r.Status).HasConversion<string>().IsRequired().HasMaxLength(20);
             roomType.Ignore(r => r.IsActive);
             roomType.HasIndex(r => new { r.PropertyId, r.Name }).IsUnique();
+        });
+
+        builder.Entity<Room>(room =>
+        {
+            room.HasKey(r => r.Id);
+            room.Property(r => r.Id).IsRequired().ValueGeneratedOnAdd();
+            room.Property(r => r.PropertyId).IsRequired();
+            room.Property(r => r.Number).IsRequired().HasMaxLength(Room.MaxNumberLength);
+            room.Property(r => r.RoomTypeId).IsRequired();
+            room.Property(r => r.Floor);
+            room.HasIndex(r => new { r.PropertyId, r.Number }).IsUnique();
+
+            // A room type cannot be removed while a room uses it
+            room.HasOne<RoomType>()
+                .WithMany()
+                .HasForeignKey(r => r.RoomTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<RatePlan>(ratePlan =>
