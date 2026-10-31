@@ -10,7 +10,7 @@ namespace HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCor
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    ///     Applies the mapping of properties, rate plans and daily rates.
+    ///     Applies the mapping of properties, room types, rate plans and daily rates.
     /// </summary>
     /// <param name="builder">The model builder of the application context.</param>
     public static void ApplyRoomsConfiguration(this ModelBuilder builder)
@@ -26,6 +26,20 @@ public static class ModelBuilderExtensions
             property.HasData(
                 new { Id = 1, OrganizationId = 1, Name = "Cartagena 04", City = "Cartagena", Currency = "PEN" },
                 new { Id = 2, OrganizationId = 1, Name = "Lima 01", City = "Lima", Currency = "PEN" });
+        });
+
+        builder.Entity<RoomType>(roomType =>
+        {
+            roomType.HasKey(r => r.Id);
+            roomType.Property(r => r.Id).IsRequired().ValueGeneratedOnAdd();
+            roomType.Property(r => r.PropertyId).IsRequired();
+            roomType.Property(r => r.Name).IsRequired().HasMaxLength(80);
+            roomType.Property(r => r.Capacity).IsRequired();
+            roomType.Property(r => r.BedConfiguration).IsRequired().HasMaxLength(80);
+            roomType.Property(r => r.BaseNightlyRate).IsRequired().HasPrecision(10, 2);
+            roomType.Property(r => r.Status).HasConversion<string>().IsRequired().HasMaxLength(20);
+            roomType.Ignore(r => r.IsActive);
+            roomType.HasIndex(r => new { r.PropertyId, r.Name }).IsUnique();
         });
 
         builder.Entity<RatePlan>(ratePlan =>
