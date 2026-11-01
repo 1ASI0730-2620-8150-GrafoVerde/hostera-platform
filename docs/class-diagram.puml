@@ -1,0 +1,363 @@
+@startuml Hostera Platform Class Diagram - Rooms and Shared Bounded Contexts
+
+    title
+        Hostera Platform
+        Class Diagram
+        Rooms and Shared Bounded Contexts
+    end title
+
+    package "Shared Bounded Context" as Shared {
+        package "Domain.Model" as SharedDomain {
+            interface IAuditableEntity {
+                +CreatedAt: DateTimeOffset?
+                +UpdatedAt: DateTimeOffset?
+            }
+        }
+
+        package "Domain.Repositories" as SharedRepositories {
+            interface IBaseRepository<TEntity> {
+                +AddAsync(TEntity entity, CancellationToken cancellationToken): Task
+                +FindByIdAsync(int id, CancellationToken cancellationToken): Task<TEntity?>
+                +Update(TEntity entity): void
+                +Remove(TEntity entity): void
+                +ListAsync(CancellationToken cancellationToken): Task<IEnumerable<TEntity>>
+            }
+
+            interface IUnitOfWork {
+                +CompleteAsync(CancellationToken cancellationToken): Task
+            }
+        }
+
+        package "Application.Patterns" as SharedApplication {
+            abstract class "Result<TValue, TError>" as Result <<record>> {
+                +IsSuccess: bool
+                +IsFailure: bool
+                +Map<TNext>(Func<TValue, TNext> onSuccess): Result<TNext, TError>
+                +Fold<TResult>(Func<TValue, TResult> onSuccess, Func<TError, TResult> onFailure): TResult
+            }
+        }
+
+        package "Infrastructure" as SharedInfrastructure {
+            class "BaseRepository<TEntity>" as BaseRepository implements IBaseRepository
+            class UnitOfWork implements IUnitOfWork
+        }
+    }
+
+    package "Rooms Bounded Context" as Rooms {
+        package "Domain" as RoomsDomain {
+            class Property <<Aggregate>> {
+                +Id: int
+                +OrganizationId: int
+                +Name: string
+                +City: string
+                +Currency: string
+            }
+
+            class RoomType <<Aggregate>> implements IAuditableEntity {
+                +MaxCapacity: int = 12
+                +RoomType(CreateRoomTypeCommand command)
+                +Id: int
+                +PropertyId: int
+                +Name: string
+                +Capacity: int
+                +BedConfiguration: string
+                +BaseNightlyRate: decimal
+                +Status: ERecordStatus
+                +IsActive: bool
+                +Update(UpdateRoomTypeCommand command): void
+            }
+
+            class Room <<Aggregate>> implements IAuditableEntity {
+                +MaxNumberLength: int = 10
+                +Room(CreateRoomCommand command)
+                +Id: int
+                +PropertyId: int
+                +Number: string
+                +RoomTypeId: int
+                +Floor: int?
+                +Update(UpdateRoomCommand command): void
+            }
+
+            class RatePlan <<Aggregate>> implements IAuditableEntity {
+                +RatePlan(CreateRatePlanCommand command)
+                +Id: int
+                +PropertyId: int
+                +Name: string
+                +Refundable: bool
+                +CancellationPolicy: string?
+                +Status: ERecordStatus
+                +RoomTypes: IReadOnlyCollection<RatePlanRoomType>
+                +Services: IReadOnlyCollection<RatePlanService>
+                +RoomTypeIds: IReadOnlyList<int>
+                +IncludedServices: IReadOnlyList<EIncludedService>
+                +AppliesTo(int roomTypeId): bool
+                +Update(UpdateRatePlanCommand command): void
+            }
+
+            class RatePlanRoomType <<Entity>> {
+                +RatePlanId: int
+                +RoomTypeId: int
+            }
+
+            class RatePlanService <<Entity>> {
+                +RatePlanId: int
+                +Service: EIncludedService
+            }
+
+            class DailyRate <<Aggregate>> implements IAuditableEntity {
+                +DailyRate(int propertyId, int ratePlanId, int roomTypeId, DateOnly date, decimal amount)
+                +Id: int
+                +PropertyId: int
+                +RatePlanId: int
+                +RoomTypeId: int
+                +Date: DateOnly
+                +Amount: decimal
+                +ChangeAmount(decimal amount): void
+            }
+
+            enum ERecordStatus <<ValueObject>> {
+                Active
+                Inactive
+            }
+
+            enum EIncludedService <<ValueObject>> {
+                RoomOnly
+                BreakfastIncluded
+                HalfBoard
+                FullBoard
+            }
+
+            class CreateRoomTypeCommand <<record>> {
+                +PropertyId: int
+                +Name: string
+                +Capacity: int
+                +BedConfiguration: string
+                +BaseNightlyRate: decimal
+            }
+
+            class UpdateRoomTypeCommand <<record>> {
+                +RoomTypeId: int
+                +Name: string
+                +Capacity: int
+                +BedConfiguration: string
+                +BaseNightlyRate: decimal
+                +Status: ERecordStatus
+            }
+
+            class DeleteRoomTypeCommand <<record>> {
+                +RoomTypeId: int
+            }
+
+            class CreateRoomCommand <<record>> {
+                +PropertyId: int
+                +Number: string
+                +RoomTypeId: int
+                +Floor: int?
+            }
+
+            class UpdateRoomCommand <<record>> {
+                +RoomId: int
+                +Number: string
+                +RoomTypeId: int
+                +Floor: int?
+            }
+
+            interface IPropertyRepository extends IBaseRepository
+
+            interface IRoomTypeRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<RoomType>>
+                +ExistsByPropertyIdAndNameAsync(int propertyId, string name, int? excludedRoomTypeId, CancellationToken cancellationToken): Task<bool>
+            }
+
+            interface IRoomRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<Room>>
+                +ExistsByPropertyIdAndNumberAsync(int propertyId, string number, int? excludedRoomId, CancellationToken cancellationToken): Task<bool>
+                +ExistsByRoomTypeIdAsync(int roomTypeId, CancellationToken cancellationToken): Task<bool>
+            }
+
+            interface IRatePlanRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<RatePlan>>
+                +ExistsByPropertyIdAndNameAsync(int propertyId, string name, int? excludedRatePlanId, CancellationToken cancellationToken): Task<bool>
+                +ExistsByRoomTypeIdAsync(int roomTypeId, CancellationToken cancellationToken): Task<bool>
+            }
+
+            interface IDailyRateRepository extends IBaseRepository {
+                +FindByPropertyIdAndPeriodAsync(int propertyId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken): Task<IEnumerable<DailyRate>>
+                +FindByRatePlanAndRoomTypeAsync(int ratePlanId, int roomTypeId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken): Task<IEnumerable<DailyRate>>
+                +FindByRoomTypeIdAsync(int roomTypeId, CancellationToken cancellationToken): Task<IEnumerable<DailyRate>>
+            }
+        }
+
+        package "Application" as RoomsApplication {
+            enum RoomError {
+                InvalidInput
+                PropertyNotFound
+                RoomTypeNotFound
+                DuplicateRoomTypeName
+                RoomNotFound
+                DuplicateRoomNumber
+                RoomTypeFromAnotherProperty
+                InactiveRoomType
+                RoomTypeInUse
+            }
+
+            enum RateError {
+                InvalidInput
+                InvalidDateRange
+                RatePlanNotFound
+                DuplicateRatePlanName
+                RoomTypeNotInRatePlan
+            }
+
+            interface IRoomTypeCommandService {
+                +Handle(CreateRoomTypeCommand command, CancellationToken cancellationToken): Task<Result<RoomType, RoomError>>
+                +Handle(UpdateRoomTypeCommand command, CancellationToken cancellationToken): Task<Result<RoomType, RoomError>>
+                +Handle(DeleteRoomTypeCommand command, CancellationToken cancellationToken): Task<Result<RoomType, RoomError>>
+            }
+
+            interface IRoomTypeQueryService {
+                +Handle(GetAllRoomTypesByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<RoomType>>
+                +Handle(GetRoomTypeByIdQuery query, CancellationToken cancellationToken): Task<RoomType?>
+            }
+
+            interface IRoomCommandService {
+                +Handle(CreateRoomCommand command, CancellationToken cancellationToken): Task<Result<Room, RoomError>>
+                +Handle(UpdateRoomCommand command, CancellationToken cancellationToken): Task<Result<Room, RoomError>>
+            }
+
+            interface IRoomQueryService {
+                +Handle(GetAllRoomsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<Room>>
+                +Handle(GetRoomByIdQuery query, CancellationToken cancellationToken): Task<Room?>
+            }
+
+            interface IRatePlanCommandService {
+                +Handle(CreateRatePlanCommand command, CancellationToken cancellationToken): Task<Result<RatePlan, RateError>>
+                +Handle(UpdateRatePlanCommand command, CancellationToken cancellationToken): Task<Result<RatePlan, RateError>>
+                +Handle(SetDailyRatesCommand command, CancellationToken cancellationToken): Task<Result<IEnumerable<DailyRate>, RateError>>
+            }
+
+            interface IRatePlanQueryService {
+                +Handle(GetAllRatePlansByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<RatePlan>>
+                +Handle(GetRatePlanByIdQuery query, CancellationToken cancellationToken): Task<RatePlan?>
+                +Handle(GetDailyRatesByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<DailyRate>>
+            }
+
+            interface IPropertyQueryService {
+                +Handle(GetAllPropertiesQuery query, CancellationToken cancellationToken): Task<IEnumerable<Property>>
+                +Handle(GetPropertyByIdQuery query, CancellationToken cancellationToken): Task<Property?>
+            }
+
+            class RoomTypeCommandService implements IRoomTypeCommandService {
+                +RoomTypeCommandService(IRoomTypeRepository roomTypeRepository, IPropertyRepository propertyRepository, IRoomRepository roomRepository, IRatePlanRepository ratePlanRepository, IDailyRateRepository dailyRateRepository, IUnitOfWork unitOfWork)
+            }
+
+            class RoomTypeQueryService implements IRoomTypeQueryService {
+                +RoomTypeQueryService(IRoomTypeRepository roomTypeRepository)
+            }
+
+            class RoomCommandService implements IRoomCommandService {
+                +RoomCommandService(IRoomRepository roomRepository, IRoomTypeRepository roomTypeRepository, IPropertyRepository propertyRepository, IUnitOfWork unitOfWork)
+            }
+
+            class RoomQueryService implements IRoomQueryService {
+                +RoomQueryService(IRoomRepository roomRepository)
+            }
+
+            class RatePlanCommandService implements IRatePlanCommandService {
+                +RatePlanCommandService(IRatePlanRepository ratePlanRepository, IDailyRateRepository dailyRateRepository, IUnitOfWork unitOfWork)
+            }
+
+            class RatePlanQueryService implements IRatePlanQueryService {
+                +RatePlanQueryService(IRatePlanRepository ratePlanRepository, IDailyRateRepository dailyRateRepository)
+            }
+
+            class PropertyQueryService implements IPropertyQueryService {
+                +PropertyQueryService(IPropertyRepository propertyRepository)
+            }
+        }
+
+        package "Infrastructure" as RoomsInfrastructure {
+            class PropertyRepository extends BaseRepository implements IPropertyRepository
+            class RoomTypeRepository extends BaseRepository implements IRoomTypeRepository
+            class RoomRepository extends BaseRepository implements IRoomRepository
+            class RatePlanRepository extends BaseRepository implements IRatePlanRepository
+            class DailyRateRepository extends BaseRepository implements IDailyRateRepository
+        }
+
+        package "Interfaces.Rest" as RoomsRest {
+            class PropertiesController {
+                +GetAllProperties(CancellationToken cancellationToken): Task<IActionResult>
+                +GetPropertyById(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyRoomTypesController {
+                +GetRoomTypesByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+                +CreateRoomType(int propertyId, CreateRoomTypeResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class RoomTypesController {
+                +GetRoomTypeById(int roomTypeId, CancellationToken cancellationToken): Task<IActionResult>
+                +UpdateRoomType(int roomTypeId, UpdateRoomTypeResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +DeleteRoomType(int roomTypeId, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyRoomsController {
+                +GetRoomsByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+                +CreateRoom(int propertyId, CreateRoomResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class RoomsController {
+                +GetRoomById(int roomId, CancellationToken cancellationToken): Task<IActionResult>
+                +UpdateRoom(int roomId, UpdateRoomResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class RoomsActionResultAssembler <<static>> {
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, RoomError> result, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromQueryResult<TValue>(ControllerBase controller, TValue? value, RoomError notFoundError, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromInvalidResource(ControllerBase controller, ArgumentException exception): IActionResult
+            }
+        }
+
+        Property "1" -- "0..*" RoomType : offers >
+        RoomType "1" -- "0..*" Room : classifies >
+        Property "1" -- "0..*" RatePlan : sells under >
+        RatePlan "1" *-- "0..*" RatePlanRoomType
+        RatePlan "1" *-- "1..*" RatePlanService
+        RatePlanRoomType "0..*" --> "1" RoomType
+        RatePlan "1" -- "0..*" DailyRate : prices >
+        DailyRate "0..*" --> "1" RoomType
+
+        RoomType ..> ERecordStatus
+        RatePlan ..> ERecordStatus
+        RatePlanService ..> EIncludedService
+
+        RoomTypeCommandService ..> IRoomTypeRepository
+        RoomTypeCommandService ..> IPropertyRepository
+        RoomTypeCommandService ..> IRoomRepository
+        RoomTypeCommandService ..> IRatePlanRepository
+        RoomTypeCommandService ..> IDailyRateRepository
+        RoomTypeQueryService ..> IRoomTypeRepository
+        RoomCommandService ..> IRoomRepository
+        RoomCommandService ..> IRoomTypeRepository
+        RoomCommandService ..> IPropertyRepository
+        RoomQueryService ..> IRoomRepository
+        RatePlanCommandService ..> IRatePlanRepository
+        RatePlanCommandService ..> IDailyRateRepository
+        RatePlanQueryService ..> IRatePlanRepository
+        RatePlanQueryService ..> IDailyRateRepository
+        PropertyQueryService ..> IPropertyRepository
+
+        PropertiesController ..> IPropertyQueryService
+        PropertyRoomTypesController ..> IRoomTypeCommandService
+        PropertyRoomTypesController ..> IRoomTypeQueryService
+        RoomTypesController ..> IRoomTypeCommandService
+        RoomTypesController ..> IRoomTypeQueryService
+        PropertyRoomsController ..> IRoomCommandService
+        PropertyRoomsController ..> IRoomQueryService
+        RoomsController ..> IRoomCommandService
+        RoomsController ..> IRoomQueryService
+        RoomTypesController ..> RoomsActionResultAssembler
+        RoomsController ..> RoomsActionResultAssembler
+    }
+
+@enduml
