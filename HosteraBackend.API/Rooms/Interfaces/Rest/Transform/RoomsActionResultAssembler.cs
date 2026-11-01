@@ -15,6 +15,9 @@ public static class RoomsActionResultAssembler
         RoomError.PropertyNotFound => StatusCodes.Status404NotFound,
         RoomError.RoomTypeNotFound => StatusCodes.Status404NotFound,
         RoomError.DuplicateRoomTypeName => StatusCodes.Status409Conflict,
+        RoomError.RoomNotFound => StatusCodes.Status404NotFound,
+        RoomError.DuplicateRoomNumber => StatusCodes.Status409Conflict,
+        RoomError.InactiveRoomType => StatusCodes.Status409Conflict,
         _ => StatusCodes.Status400BadRequest
     };
 
@@ -24,6 +27,10 @@ public static class RoomsActionResultAssembler
         RoomError.PropertyNotFound => "The specified property was not found.",
         RoomError.RoomTypeNotFound => "The specified room type was not found.",
         RoomError.DuplicateRoomTypeName => "Another room type of the property uses the same name.",
+        RoomError.RoomNotFound => "The specified room was not found.",
+        RoomError.DuplicateRoomNumber => "Another room of the property uses the same number.",
+        RoomError.RoomTypeFromAnotherProperty => "The room type belongs to a different property than the room.",
+        RoomError.InactiveRoomType => "The room type is inactive, so rooms cannot be assigned to it.",
         _ => "An unexpected error occurred."
     };
 
