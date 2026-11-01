@@ -34,6 +34,7 @@ public static class RoomsActionResultAssembler
         RoomError.InactiveRoomType => "The room type is inactive, so rooms cannot be assigned to it.",
         RoomError.RoomTypeInUse =>
             "The room type cannot be deleted while a room belongs to it or a rate plan lists it.",
+        RoomError.InvalidDateRange => "The date range ends before it starts or is longer than 366 days.",
         _ => "An unexpected error occurred."
     };
 

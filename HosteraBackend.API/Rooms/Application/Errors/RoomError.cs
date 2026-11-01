@@ -48,5 +48,10 @@ public enum RoomError
 	/// <summary>
 	/// The room type cannot be deleted while a room belongs to it or a rate plan lists it.
 	/// </summary>
-	RoomTypeInUse
+	RoomTypeInUse,
+
+	/// <summary>
+	/// The date range ends before it starts or is longer than the supported period.
+	/// </summary>
+	InvalidDateRange
 }
