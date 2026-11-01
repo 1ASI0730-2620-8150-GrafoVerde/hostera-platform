@@ -103,6 +103,9 @@ builder.Services.AddScoped<IPropertyQueryService, PropertyQueryService>();
 builder.Services.AddScoped<IRoomTypeRepository, RoomTypeRepository>();
 builder.Services.AddScoped<IRoomTypeCommandService, RoomTypeCommandService>();
 builder.Services.AddScoped<IRoomTypeQueryService, RoomTypeQueryService>();
+builder.Services.AddScoped<IRoomRepository, RoomRepository>();
+builder.Services.AddScoped<IRoomCommandService, RoomCommandService>();
+builder.Services.AddScoped<IRoomQueryService, RoomQueryService>();
 
 // Overview Bounded Context
 builder.Services.AddScoped<IOverviewReadRepository, OverviewReadRepository>();
