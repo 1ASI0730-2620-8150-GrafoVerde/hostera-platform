@@ -21,12 +21,12 @@ The `Shared` context holds the building blocks used by every context: the base r
 
 | Context | Responsibility |
 | --- | --- |
-| Rooms & Availability | Properties, room types, rate plans, and daily rates. |
+| Rooms & Availability | Properties, room types, rooms, rate plans, and daily rates. |
 | Inventory Management | Storage locations, inventory items, their stock per location, and stock adjustments. |
 | Access Control | RFID credentials for guests and staff, staff members, and access events. |
 | Overview | The operational dashboard of a property and the comparison of properties. It only reads other contexts. |
 
-Bookings, payments, rooms, and room status periods are still in development.
+Bookings, payments, and room status periods are still in development.
 
 ## Endpoints
 
@@ -40,6 +40,11 @@ All routes start with `/api/v1`.
 | Rooms | `POST /properties/{propertyId}/room-types` | Create a room type. |
 | Rooms | `GET /room-types/{roomTypeId}` | Get a room type. |
 | Rooms | `PUT /room-types/{roomTypeId}` | Update a room type and its status. |
+| Rooms | `DELETE /room-types/{roomTypeId}` | Delete a room type that no room or rate plan uses. |
+| Rooms | `GET /properties/{propertyId}/rooms` | List the rooms of a property. |
+| Rooms | `POST /properties/{propertyId}/rooms` | Create a room. |
+| Rooms | `GET /rooms/{roomId}` | Get a room. |
+| Rooms | `PUT /rooms/{roomId}` | Update the number, room type, and floor of a room. |
 | Inventory | `GET`, `POST /properties/{propertyId}/storage-locations` | List and create storage locations. |
 | Inventory | `GET`, `PUT`, `DELETE /storage-locations/{storageLocationId}` | Get, update, and delete a storage location. |
 | Inventory | `GET`, `POST /properties/{propertyId}/inventory-items` | List and create inventory items. |
@@ -152,6 +157,7 @@ HosteraBackend.API/
     Infrastructure/     EF Core context, conventions, and base repository
   Program.cs            Service registration and HTTP pipeline
 docs/
+  class-diagram.puml    PlantUML class diagram
   user-stories.md       Technical stories of the API
 ```
 
@@ -160,6 +166,7 @@ Each bounded context folder contains `Domain/`, `Application/`, `Infrastructure/
 ## Documentation
 
 - **Technical stories**: [`docs/user-stories.md`](docs/user-stories.md)
+- **PlantUML class diagram**: [`docs/class-diagram.puml`](docs/class-diagram.puml)
 
 ## Build
 
