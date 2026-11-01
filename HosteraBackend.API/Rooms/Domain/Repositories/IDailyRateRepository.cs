@@ -34,4 +34,14 @@ public interface IDailyRateRepository : IBaseRepository<DailyRate>
     /// </returns>
     Task<IEnumerable<DailyRate>> FindByRatePlanAndRoomTypeAsync(int ratePlanId, int roomTypeId, DateOnly startDate,
         DateOnly endDate, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Find every daily rate of a room type, under any rate plan
+    /// </summary>
+    /// <param name="roomTypeId">The identifier of the room type.</param>
+    /// <param name="cancellationToken">Token to cancel the asynchronous operation.</param>
+    /// <returns>
+    ///     An Enumerable containing the daily rates of the room type, or empty otherwise.
+    /// </returns>
+    Task<IEnumerable<DailyRate>> FindByRoomTypeIdAsync(int roomTypeId, CancellationToken cancellationToken = default);
 }

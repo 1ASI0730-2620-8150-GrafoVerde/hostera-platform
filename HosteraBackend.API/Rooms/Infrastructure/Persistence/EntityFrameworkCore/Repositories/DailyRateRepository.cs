@@ -36,4 +36,13 @@ public class DailyRateRepository(AppDbContext context)
                            && rate.Date <= endDate)
             .ToListAsync(cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<IEnumerable<DailyRate>> FindByRoomTypeIdAsync(int roomTypeId,
+        CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<DailyRate>()
+            .Where(rate => rate.RoomTypeId == roomTypeId)
+            .ToListAsync(cancellationToken);
+    }
 }
