@@ -17,12 +17,24 @@ namespace HosteraBackend.API.Rooms.Application.Internal.CommandServices;
 /// <param name="propertyRepository">
 ///     The <see cref="IPropertyRepository" /> to use.
 /// </param>
+/// <param name="roomRepository">
+///     The <see cref="IRoomRepository" /> to use.
+/// </param>
+/// <param name="ratePlanRepository">
+///     The <see cref="IRatePlanRepository" /> to use.
+/// </param>
+/// <param name="dailyRateRepository">
+///     The <see cref="IDailyRateRepository" /> to use.
+/// </param>
 /// <param name="unitOfWork">
 ///     The <see cref="IUnitOfWork" /> to use.
 /// </param>
 public class RoomTypeCommandService(
     IRoomTypeRepository roomTypeRepository,
     IPropertyRepository propertyRepository,
+    IRoomRepository roomRepository,
+    IRatePlanRepository ratePlanRepository,
+    IDailyRateRepository dailyRateRepository,
     IUnitOfWork unitOfWork)
     : IRoomTypeCommandService
 {
@@ -73,6 +85,27 @@ public class RoomTypeCommandService(
             return Failure(RoomError.InvalidInput);
         }
 
+        await unitOfWork.CompleteAsync(cancellationToken);
+        return new Result<RoomType, RoomError>.Success(roomType);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<RoomType, RoomError>> Handle(DeleteRoomTypeCommand command,
+        CancellationToken cancellationToken)
+    {
+        var roomType = await roomTypeRepository.FindByIdAsync(command.RoomTypeId, cancellationToken);
+        if (roomType is null)
+            return Failure(RoomError.RoomTypeNotFound);
+
+        if (await roomRepository.ExistsByRoomTypeIdAsync(roomType.Id, cancellationToken)
+            || await ratePlanRepository.ExistsByRoomTypeIdAsync(roomType.Id, cancellationToken))
+            return Failure(RoomError.RoomTypeInUse);
+
+        // Plans that sell every room type may still price this one, and those prices go with it
+        foreach (var dailyRate in await dailyRateRepository.FindByRoomTypeIdAsync(roomType.Id, cancellationToken))
+            dailyRateRepository.Remove(dailyRate);
+
+        roomTypeRepository.Remove(roomType);
         await unitOfWork.CompleteAsync(cancellationToken);
         return new Result<RoomType, RoomError>.Success(roomType);
     }

@@ -43,5 +43,10 @@ public enum RoomError
 	/// <summary>
 	/// The room type is inactive, so new rooms cannot be assigned to it.
 	/// </summary>
-	InactiveRoomType
+	InactiveRoomType,
+
+	/// <summary>
+	/// The room type cannot be deleted while a room belongs to it or a rate plan lists it.
+	/// </summary>
+	RoomTypeInUse
 }

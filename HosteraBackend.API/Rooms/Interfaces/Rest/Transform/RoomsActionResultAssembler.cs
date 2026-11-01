@@ -18,6 +18,7 @@ public static class RoomsActionResultAssembler
         RoomError.RoomNotFound => StatusCodes.Status404NotFound,
         RoomError.DuplicateRoomNumber => StatusCodes.Status409Conflict,
         RoomError.InactiveRoomType => StatusCodes.Status409Conflict,
+        RoomError.RoomTypeInUse => StatusCodes.Status409Conflict,
         _ => StatusCodes.Status400BadRequest
     };
 
@@ -31,6 +32,8 @@ public static class RoomsActionResultAssembler
         RoomError.DuplicateRoomNumber => "Another room of the property uses the same number.",
         RoomError.RoomTypeFromAnotherProperty => "The room type belongs to a different property than the room.",
         RoomError.InactiveRoomType => "The room type is inactive, so rooms cannot be assigned to it.",
+        RoomError.RoomTypeInUse =>
+            "The room type cannot be deleted while a room belongs to it or a rate plan lists it.",
         _ => "An unexpected error occurred."
     };
 

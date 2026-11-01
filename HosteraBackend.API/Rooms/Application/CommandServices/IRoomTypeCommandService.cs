@@ -25,4 +25,12 @@ public interface IRoomTypeCommandService
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The updated <see cref="RoomType" />, or the <see cref="RoomError" /> that prevented it.</returns>
     Task<Result<RoomType, RoomError>> Handle(UpdateRoomTypeCommand command, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Handles the delete room type command.
+    /// </summary>
+    /// <param name="command">The <see cref="DeleteRoomTypeCommand" /> command to handle.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The deleted <see cref="RoomType" />, or the <see cref="RoomError" /> that prevented it.</returns>
+    Task<Result<RoomType, RoomError>> Handle(DeleteRoomTypeCommand command, CancellationToken cancellationToken);
 }
