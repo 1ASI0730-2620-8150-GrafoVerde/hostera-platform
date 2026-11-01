@@ -10,7 +10,7 @@ namespace HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCor
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    ///     Applies the mapping of properties, room types, rooms, rate plans and daily rates.
+    ///     Applies the mapping of properties, room types, rooms, status periods, rate plans and daily rates.
     /// </summary>
     /// <param name="builder">The model builder of the application context.</param>
     public static void ApplyRoomsConfiguration(this ModelBuilder builder)
@@ -57,6 +57,32 @@ public static class ModelBuilderExtensions
                 .WithMany()
                 .HasForeignKey(r => r.RoomTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<StatusPeriod>(statusPeriod =>
+        {
+            statusPeriod.HasKey(s => s.Id);
+            statusPeriod.Property(s => s.Id).IsRequired().ValueGeneratedOnAdd();
+            statusPeriod.Property(s => s.PropertyId).IsRequired();
+            statusPeriod.Property(s => s.RoomId).IsRequired();
+            statusPeriod.Property(s => s.Status).HasConversion<string>().IsRequired().HasMaxLength(20);
+            // The MySQL provider reads date columns as DateTime, so the values are converted explicitly
+            statusPeriod.Property(s => s.StartDate)
+                .HasConversion(date => date.ToDateTime(TimeOnly.MinValue), value => DateOnly.FromDateTime(value))
+                .HasColumnType("date")
+                .IsRequired();
+            statusPeriod.Property(s => s.EndDate)
+                .HasConversion(date => date.ToDateTime(TimeOnly.MinValue), value => DateOnly.FromDateTime(value))
+                .HasColumnType("date")
+                .IsRequired();
+            statusPeriod.Property(s => s.Reason).IsRequired().HasMaxLength(StatusPeriod.MaxReasonLength);
+            statusPeriod.Ignore(s => s.PreventsBooking);
+            statusPeriod.HasIndex(s => new { s.RoomId, s.StartDate });
+
+            statusPeriod.HasOne<Room>()
+                .WithMany()
+                .HasForeignKey(s => s.RoomId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<RatePlan>(ratePlan =>
