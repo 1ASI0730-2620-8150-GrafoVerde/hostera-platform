@@ -2,6 +2,7 @@ using System.Net.Mime;
 using HosteraBackend.API.Rooms.Application.CommandServices;
 using HosteraBackend.API.Rooms.Application.Errors;
 using HosteraBackend.API.Rooms.Application.QueryServices;
+using HosteraBackend.API.Rooms.Domain.Model.Commands;
 using HosteraBackend.API.Rooms.Domain.Model.Queries;
 using HosteraBackend.API.Rooms.Interfaces.Rest.Resources;
 using HosteraBackend.API.Rooms.Interfaces.Rest.Transform;
@@ -75,5 +76,28 @@ public class RoomTypesController(
         {
             return RoomsActionResultAssembler.ToActionResultFromInvalidResource(this, exception);
         }
+    }
+
+    /// <summary>
+    ///     Deletes a room type that no room or rate plan uses.
+    /// </summary>
+    /// <param name="roomTypeId">The identifier of the room type.</param>
+    /// <param name="cancellationToken">Token to cancel the asynchronous operation.</param>
+    /// <returns>
+    ///     No content when the room type is deleted, or a problem details response when it does not exist or is in use.
+    /// </returns>
+    [HttpDelete("{roomTypeId:int}")]
+    [EndpointSummary("Delete a room type")]
+    [EndpointDescription("Delete a room type that no room belongs to and no rate plan lists. " +
+                         "Its daily rates are deleted with it")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> DeleteRoomType([FromRoute] int roomTypeId, CancellationToken cancellationToken)
+    {
+        var command = new DeleteRoomTypeCommand(roomTypeId);
+        var result = await roomTypeCommandService.Handle(command, cancellationToken);
+
+        return RoomsActionResultAssembler.ToActionResultFromResult(this, result, _ => NoContent());
     }
 }
