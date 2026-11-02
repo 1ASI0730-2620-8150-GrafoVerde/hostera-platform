@@ -48,6 +48,12 @@ All routes start with `/api/v1`.
 | Rooms | `PUT /rooms/{roomId}/status` | Set or release the operational status of a room over a date range. |
 | Rooms | `GET /properties/{propertyId}/status-periods` | List the status periods of the rooms of a property, optionally between `from` and `to`. |
 | Rooms | `GET /properties/{propertyId}/room-availability?startDate=` | Get the status of each room for seven days, optionally filtered by `status`. |
+| Rooms | `GET /properties/{propertyId}/rate-plans` | List the rate plans of a property, with its currency. |
+| Rooms | `POST /properties/{propertyId}/rate-plans` | Create a rate plan. |
+| Rooms | `GET /rate-plans/{ratePlanId}` | Get a rate plan. |
+| Rooms | `PUT /rate-plans/{ratePlanId}` | Update a rate plan; plans are made inactive instead of deleted. |
+| Rooms | `PUT /rate-plans/{ratePlanId}/daily-rates` | Set the price of a range of nights for a room type, or return them to the base rate. |
+| Rooms | `GET /properties/{propertyId}/daily-rates?startDate=&endDate=` | List the daily rates of a property between two nights. |
 | Inventory | `GET`, `POST /properties/{propertyId}/storage-locations` | List and create storage locations. |
 | Inventory | `GET`, `PUT`, `DELETE /storage-locations/{storageLocationId}` | Get, update, and delete a storage location. |
 | Inventory | `GET`, `POST /properties/{propertyId}/inventory-items` | List and create inventory items. |
