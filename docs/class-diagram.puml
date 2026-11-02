@@ -271,6 +271,8 @@
                 RatePlanNotFound
                 DuplicateRatePlanName
                 RoomTypeNotInRatePlan
+                PropertyNotFound
+                UnknownRoomType
             }
 
             interface IRoomTypeCommandService {
@@ -345,7 +347,7 @@
             }
 
             class RatePlanCommandService implements IRatePlanCommandService {
-                +RatePlanCommandService(IRatePlanRepository ratePlanRepository, IDailyRateRepository dailyRateRepository, IUnitOfWork unitOfWork)
+                +RatePlanCommandService(IRatePlanRepository ratePlanRepository, IDailyRateRepository dailyRateRepository, IRoomTypeRepository roomTypeRepository, IPropertyRepository propertyRepository, IUnitOfWork unitOfWork)
             }
 
             class RatePlanQueryService implements IRatePlanQueryService {
@@ -405,9 +407,26 @@
                 +GetRoomAvailabilityByPropertyId(int propertyId, DateOnly startDate, string? status, CancellationToken cancellationToken): Task<IActionResult>
             }
 
+            class PropertyRatePlansController {
+                +GetRatePlansByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+                +CreateRatePlan(int propertyId, CreateRatePlanResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class RatePlansController {
+                +GetRatePlanById(int ratePlanId, CancellationToken cancellationToken): Task<IActionResult>
+                +UpdateRatePlan(int ratePlanId, UpdateRatePlanResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +SetDailyRates(int ratePlanId, SetDailyRatesResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyDailyRatesController {
+                +GetDailyRatesByPropertyId(int propertyId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
             class RoomsActionResultAssembler <<static>> {
                 +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, RoomError> result, Func<TValue, IActionResult> successAction): IActionResult
                 +ToActionResultFromQueryResult<TValue>(ControllerBase controller, TValue? value, RoomError notFoundError, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, RateError> result, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromRateError(ControllerBase controller, RateError error): IActionResult
                 +ToActionResultFromInvalidResource(ControllerBase controller, ArgumentException exception): IActionResult
             }
         }
@@ -446,6 +465,8 @@
         StatusPeriodQueryService ..> IStatusPeriodRepository
         RatePlanCommandService ..> IRatePlanRepository
         RatePlanCommandService ..> IDailyRateRepository
+        RatePlanCommandService ..> IRoomTypeRepository
+        RatePlanCommandService ..> IPropertyRepository
         RatePlanQueryService ..> IRatePlanRepository
         RatePlanQueryService ..> IDailyRateRepository
         PropertyQueryService ..> IPropertyRepository
@@ -464,6 +485,13 @@
         RoomStatusController ..> IStatusPeriodCommandService
         PropertyStatusPeriodsController ..> IStatusPeriodQueryService
         PropertyRoomAvailabilityController ..> IRoomQueryService
+        PropertyRatePlansController ..> IRatePlanCommandService
+        PropertyRatePlansController ..> IRatePlanQueryService
+        PropertyRatePlansController ..> IPropertyQueryService
+        RatePlansController ..> IRatePlanCommandService
+        RatePlansController ..> IRatePlanQueryService
+        RatePlansController ..> IPropertyQueryService
+        PropertyDailyRatesController ..> IRatePlanQueryService
     }
 
 @enduml
