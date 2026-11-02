@@ -78,6 +78,23 @@
                 +Update(UpdateRoomCommand command): void
             }
 
+            class StatusPeriod <<Aggregate>> implements IAuditableEntity {
+                +MaxReasonLength: int = 240
+                +StatusPeriod(int propertyId, int roomId, EOperationalStatus status, DateOnly startDate, DateOnly endDate, string reason)
+                +Id: int
+                +PropertyId: int
+                +RoomId: int
+                +Status: EOperationalStatus
+                +StartDate: DateOnly
+                +EndDate: DateOnly
+                +Reason: string
+                +PreventsBooking: bool
+                +Covers(DateOnly date): bool
+                +Overlaps(DateOnly startDate, DateOnly endDate): bool
+                +IsWithin(DateOnly startDate, DateOnly endDate): bool
+                +ReleaseDays(DateOnly startDate, DateOnly endDate): StatusPeriod?
+            }
+
             class RatePlan <<Aggregate>> implements IAuditableEntity {
                 +RatePlan(CreateRatePlanCommand command)
                 +Id: int
@@ -118,6 +135,31 @@
             enum ERecordStatus <<ValueObject>> {
                 Active
                 Inactive
+            }
+
+            enum EOperationalStatus <<ValueObject>> {
+                Blocked
+                OutOfService
+                NeedsCleaning
+            }
+
+            enum EDayStatus <<ValueObject>> {
+                Available
+                Booked
+                Occupied
+                NeedsCleaning
+                Blocked
+                OutOfService
+            }
+
+            class RoomAvailability <<ValueObject>> <<record>> {
+                +Room: Room
+                +Days: IReadOnlyList<RoomDayStatus>
+            }
+
+            class RoomDayStatus <<ValueObject>> <<record>> {
+                +Date: DateOnly
+                +Status: EDayStatus
             }
 
             enum EIncludedService <<ValueObject>> {
@@ -162,6 +204,21 @@
                 +Floor: int?
             }
 
+            class SetRoomStatusCommand <<record>> {
+                +RoomId: int
+                +Status: EOperationalStatus?
+                +StartDate: DateOnly
+                +EndDate: DateOnly
+                +Reason: string?
+            }
+
+            class GetRoomAvailabilityByPropertyIdQuery <<record>> {
+                +Days: int = 7
+                +PropertyId: int
+                +StartDate: DateOnly
+                +Status: EDayStatus?
+            }
+
             interface IPropertyRepository extends IBaseRepository
 
             interface IRoomTypeRepository extends IBaseRepository {
@@ -173,6 +230,12 @@
                 +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<Room>>
                 +ExistsByPropertyIdAndNumberAsync(int propertyId, string number, int? excludedRoomId, CancellationToken cancellationToken): Task<bool>
                 +ExistsByRoomTypeIdAsync(int roomTypeId, CancellationToken cancellationToken): Task<bool>
+            }
+
+            interface IStatusPeriodRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, DateOnly? from, DateOnly? to, CancellationToken cancellationToken): Task<IEnumerable<StatusPeriod>>
+                +FindByRoomIdAndPeriodAsync(int roomId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken): Task<IEnumerable<StatusPeriod>>
+                +FindByRoomIdAsync(int roomId, CancellationToken cancellationToken): Task<IEnumerable<StatusPeriod>>
             }
 
             interface IRatePlanRepository extends IBaseRepository {
@@ -199,6 +262,7 @@
                 RoomTypeFromAnotherProperty
                 InactiveRoomType
                 RoomTypeInUse
+                InvalidDateRange
             }
 
             enum RateError {
@@ -228,6 +292,15 @@
             interface IRoomQueryService {
                 +Handle(GetAllRoomsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<Room>>
                 +Handle(GetRoomByIdQuery query, CancellationToken cancellationToken): Task<Room?>
+                +Handle(GetRoomAvailabilityByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<RoomAvailability>>
+            }
+
+            interface IStatusPeriodCommandService {
+                +Handle(SetRoomStatusCommand command, CancellationToken cancellationToken): Task<Result<IEnumerable<StatusPeriod>, RoomError>>
+            }
+
+            interface IStatusPeriodQueryService {
+                +Handle(GetAllStatusPeriodsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<StatusPeriod>>
             }
 
             interface IRatePlanCommandService {
@@ -260,7 +333,15 @@
             }
 
             class RoomQueryService implements IRoomQueryService {
-                +RoomQueryService(IRoomRepository roomRepository)
+                +RoomQueryService(IRoomRepository roomRepository, IStatusPeriodRepository statusPeriodRepository)
+            }
+
+            class StatusPeriodCommandService implements IStatusPeriodCommandService {
+                +StatusPeriodCommandService(IStatusPeriodRepository statusPeriodRepository, IRoomRepository roomRepository, IUnitOfWork unitOfWork)
+            }
+
+            class StatusPeriodQueryService implements IStatusPeriodQueryService {
+                +StatusPeriodQueryService(IStatusPeriodRepository statusPeriodRepository)
             }
 
             class RatePlanCommandService implements IRatePlanCommandService {
@@ -280,6 +361,7 @@
             class PropertyRepository extends BaseRepository implements IPropertyRepository
             class RoomTypeRepository extends BaseRepository implements IRoomTypeRepository
             class RoomRepository extends BaseRepository implements IRoomRepository
+            class StatusPeriodRepository extends BaseRepository implements IStatusPeriodRepository
             class RatePlanRepository extends BaseRepository implements IRatePlanRepository
             class DailyRateRepository extends BaseRepository implements IDailyRateRepository
         }
@@ -311,6 +393,18 @@
                 +UpdateRoom(int roomId, UpdateRoomResource resource, CancellationToken cancellationToken): Task<IActionResult>
             }
 
+            class RoomStatusController {
+                +SetRoomStatus(int roomId, SetRoomStatusResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyStatusPeriodsController {
+                +GetStatusPeriodsByPropertyId(int propertyId, DateOnly? from, DateOnly? to, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyRoomAvailabilityController {
+                +GetRoomAvailabilityByPropertyId(int propertyId, DateOnly startDate, string? status, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
             class RoomsActionResultAssembler <<static>> {
                 +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, RoomError> result, Func<TValue, IActionResult> successAction): IActionResult
                 +ToActionResultFromQueryResult<TValue>(ControllerBase controller, TValue? value, RoomError notFoundError, Func<TValue, IActionResult> successAction): IActionResult
@@ -320,6 +414,11 @@
 
         Property "1" -- "0..*" RoomType : offers >
         RoomType "1" -- "0..*" Room : classifies >
+        Room "1" -- "0..*" StatusPeriod : has >
+        RoomAvailability "1" *-- "7" RoomDayStatus
+        RoomAvailability --> Room
+        StatusPeriod ..> EOperationalStatus
+        RoomDayStatus ..> EDayStatus
         Property "1" -- "0..*" RatePlan : sells under >
         RatePlan "1" *-- "0..*" RatePlanRoomType
         RatePlan "1" *-- "1..*" RatePlanService
@@ -341,6 +440,10 @@
         RoomCommandService ..> IRoomTypeRepository
         RoomCommandService ..> IPropertyRepository
         RoomQueryService ..> IRoomRepository
+        RoomQueryService ..> IStatusPeriodRepository
+        StatusPeriodCommandService ..> IStatusPeriodRepository
+        StatusPeriodCommandService ..> IRoomRepository
+        StatusPeriodQueryService ..> IStatusPeriodRepository
         RatePlanCommandService ..> IRatePlanRepository
         RatePlanCommandService ..> IDailyRateRepository
         RatePlanQueryService ..> IRatePlanRepository
@@ -358,6 +461,9 @@
         RoomsController ..> IRoomQueryService
         RoomTypesController ..> RoomsActionResultAssembler
         RoomsController ..> RoomsActionResultAssembler
+        RoomStatusController ..> IStatusPeriodCommandService
+        PropertyStatusPeriodsController ..> IStatusPeriodQueryService
+        PropertyRoomAvailabilityController ..> IRoomQueryService
     }
 
 @enduml
