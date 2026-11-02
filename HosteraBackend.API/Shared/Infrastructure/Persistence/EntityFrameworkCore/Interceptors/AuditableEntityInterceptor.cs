@@ -1,8 +1,8 @@
+using HosteraBackend.API.Shared.Domain.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using HosteraBackend.API.Shared.Domain.Model;
 
-namespace HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Interceptors;
+namespace HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Interceptors;
 
 public class AuditableEntityInterceptor: SaveChangesInterceptor
 {
