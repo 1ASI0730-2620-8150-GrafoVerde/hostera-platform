@@ -21,12 +21,12 @@ The `Shared` context holds the building blocks used by every context: the base r
 
 | Context | Responsibility |
 | --- | --- |
-| Rooms & Availability | Properties, room types, rooms, rate plans, and daily rates. |
+| Rooms & Availability | Properties, room types, rooms, operational status periods, room availability, rate plans, and daily rates. |
 | Inventory Management | Storage locations, inventory items, their stock per location, and stock adjustments. |
 | Access Control | RFID credentials for guests and staff, staff members, and access events. |
 | Overview | The operational dashboard of a property and the comparison of properties. It only reads other contexts. |
 
-Bookings, payments, and room status periods are still in development.
+Bookings and payments are still in development.
 
 ## Endpoints
 
@@ -45,6 +45,9 @@ All routes start with `/api/v1`.
 | Rooms | `POST /properties/{propertyId}/rooms` | Create a room. |
 | Rooms | `GET /rooms/{roomId}` | Get a room. |
 | Rooms | `PUT /rooms/{roomId}` | Update the number, room type, and floor of a room. |
+| Rooms | `PUT /rooms/{roomId}/status` | Set or release the operational status of a room over a date range. |
+| Rooms | `GET /properties/{propertyId}/status-periods` | List the status periods of the rooms of a property, optionally between `from` and `to`. |
+| Rooms | `GET /properties/{propertyId}/room-availability?startDate=` | Get the status of each room for seven days, optionally filtered by `status`. |
 | Inventory | `GET`, `POST /properties/{propertyId}/storage-locations` | List and create storage locations. |
 | Inventory | `GET`, `PUT`, `DELETE /storage-locations/{storageLocationId}` | Get, update, and delete a storage location. |
 | Inventory | `GET`, `POST /properties/{propertyId}/inventory-items` | List and create inventory items. |
