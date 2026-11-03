@@ -357,6 +357,10 @@
             class PropertyQueryService implements IPropertyQueryService {
                 +PropertyQueryService(IPropertyRepository propertyRepository)
             }
+
+            class RoomsContextFacade implements IRoomsContextFacade {
+                +RoomsContextFacade(IRoomQueryService roomQueryService, IRoomTypeQueryService roomTypeQueryService, IRatePlanQueryService ratePlanQueryService, IStatusPeriodQueryService statusPeriodQueryService)
+            }
         }
 
         package "Infrastructure" as RoomsInfrastructure {
@@ -366,6 +370,39 @@
             class StatusPeriodRepository extends BaseRepository implements IStatusPeriodRepository
             class RatePlanRepository extends BaseRepository implements IRatePlanRepository
             class DailyRateRepository extends BaseRepository implements IDailyRateRepository
+        }
+
+        package "Interfaces.ACL" as RoomsAcl {
+            interface IRoomsContextFacade {
+                +FetchRoomAsync(int roomId, CancellationToken cancellationToken): Task<RoomSummary?>
+                +FetchRoomTypeAsync(int roomTypeId, CancellationToken cancellationToken): Task<RoomTypeSummary?>
+                +FetchRatePlanAsync(int ratePlanId, CancellationToken cancellationToken): Task<RatePlanSummary?>
+                +QuoteStayAsync(int roomTypeId, int ratePlanId, DateOnly checkInDate, DateOnly checkOutDate, CancellationToken cancellationToken): Task<decimal?>
+                +HasBookingBlockingStatusAsync(int roomId, DateOnly firstNight, DateOnly lastNight, CancellationToken cancellationToken): Task<bool>
+            }
+
+            class RoomSummary <<record>> {
+                +Id: int
+                +PropertyId: int
+                +Number: string
+                +RoomTypeId: int
+            }
+
+            class RoomTypeSummary <<record>> {
+                +Id: int
+                +PropertyId: int
+                +Capacity: int
+                +IsActive: bool
+            }
+
+            class RatePlanSummary <<record>> {
+                +Id: int
+                +PropertyId: int
+                +IsActive: bool
+                +AppliesToAllRoomTypes: bool
+                +RoomTypeIds: IReadOnlyList<int>
+                +AppliesTo(int roomTypeId): bool
+            }
         }
 
         package "Interfaces.Rest" as RoomsRest {
@@ -492,6 +529,10 @@
         RatePlansController ..> IRatePlanQueryService
         RatePlansController ..> IPropertyQueryService
         PropertyDailyRatesController ..> IRatePlanQueryService
+        RoomsContextFacade ..> IRoomQueryService
+        RoomsContextFacade ..> IRoomTypeQueryService
+        RoomsContextFacade ..> IRatePlanQueryService
+        RoomsContextFacade ..> IStatusPeriodQueryService
     }
 
 @enduml
