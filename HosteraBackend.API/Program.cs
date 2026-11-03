@@ -15,12 +15,14 @@ using HosteraBackend.API.Overview.Application.Internal.QueryServices;
 using HosteraBackend.API.Overview.Application.QueryServices;
 using HosteraBackend.API.Overview.Domain.Repositories;
 using HosteraBackend.API.Overview.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Rooms.Application.ACL;
 using HosteraBackend.API.Rooms.Application.CommandServices;
 using HosteraBackend.API.Rooms.Application.Internal.CommandServices;
 using HosteraBackend.API.Rooms.Application.Internal.QueryServices;
 using HosteraBackend.API.Rooms.Application.QueryServices;
 using HosteraBackend.API.Rooms.Domain.Repositories;
 using HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Rooms.Interfaces.ACL;
 using HosteraBackend.API.Shared.Application.Internal.OutboundServices;
 using HosteraBackend.API.Shared.Domain.Repositories;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Configuration;
@@ -113,6 +115,7 @@ builder.Services.AddScoped<IRoomQueryService, RoomQueryService>();
 builder.Services.AddScoped<IStatusPeriodRepository, StatusPeriodRepository>();
 builder.Services.AddScoped<IStatusPeriodCommandService, StatusPeriodCommandService>();
 builder.Services.AddScoped<IStatusPeriodQueryService, StatusPeriodQueryService>();
+builder.Services.AddScoped<IRoomsContextFacade, RoomsContextFacade>();
 
 // Overview Bounded Context
 builder.Services.AddScoped<IOverviewReadRepository, OverviewReadRepository>();
