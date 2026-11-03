@@ -1,0 +1,39 @@
+using HosteraBackend.API.Bookings.Domain.Model.Aggregates;
+using HosteraBackend.API.Bookings.Interfaces.Rest.Resources;
+
+namespace HosteraBackend.API.Bookings.Interfaces.Rest.Transform;
+
+/// <summary>
+///     Assembler responsible for transforming a <see cref="Booking" /> aggregate into a <see cref="BookingResource" />
+///     for REST representation.
+/// </summary>
+public static class BookingResourceFromEntityAssembler
+{
+    /// <summary>
+    ///     Converts a <see cref="Booking" /> aggregate to its <see cref="BookingResource" />.
+    /// </summary>
+    /// <param name="entity">The <see cref="Booking" /> to convert. Must not be null.</param>
+    /// <returns>A <see cref="BookingResource" /> representing the booking.</returns>
+    public static BookingResource ToResourceFromEntity(Booking entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        return new BookingResource(
+            entity.Id,
+            entity.PropertyId,
+            entity.Code,
+            BookingsEnumNames.ToName(entity.Status),
+            entity.GuestName,
+            entity.GuestEmail,
+            entity.GuestPhone,
+            BookingsEnumNames.ToName(entity.PreferredLanguage),
+            entity.CheckInDate,
+            entity.CheckOutDate,
+            entity.Guests,
+            entity.RoomTypeId,
+            entity.RoomId,
+            entity.RatePlanId,
+            entity.TotalAmount,
+            entity.GuestRequest,
+            entity.CreatedAt);
+    }
+}
