@@ -21,10 +21,12 @@ using HosteraBackend.API.Rooms.Application.Internal.QueryServices;
 using HosteraBackend.API.Rooms.Application.QueryServices;
 using HosteraBackend.API.Rooms.Domain.Repositories;
 using HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Shared.Application.Internal.OutboundServices;
 using HosteraBackend.API.Shared.Domain.Repositories;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Shared.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -74,6 +76,8 @@ builder.Services.AddOpenApi();
 
 // Shared Bounded Context
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IClock, PropertyClock>();
 
 // Inventory Bounded Context
 builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository>();
