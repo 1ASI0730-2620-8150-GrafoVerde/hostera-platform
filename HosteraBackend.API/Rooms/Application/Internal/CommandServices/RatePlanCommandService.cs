@@ -17,12 +17,20 @@ namespace HosteraBackend.API.Rooms.Application.Internal.CommandServices;
 /// <param name="dailyRateRepository">
 ///     The <see cref="IDailyRateRepository" /> to use.
 /// </param>
+/// <param name="roomTypeRepository">
+///     The <see cref="IRoomTypeRepository" /> to use.
+/// </param>
+/// <param name="propertyRepository">
+///     The <see cref="IPropertyRepository" /> to use.
+/// </param>
 /// <param name="unitOfWork">
 ///     The <see cref="IUnitOfWork" /> to use.
 /// </param>
 public class RatePlanCommandService(
     IRatePlanRepository ratePlanRepository,
     IDailyRateRepository dailyRateRepository,
+    IRoomTypeRepository roomTypeRepository,
+    IPropertyRepository propertyRepository,
     IUnitOfWork unitOfWork)
     : IRatePlanCommandService
 {
@@ -42,6 +50,12 @@ public class RatePlanCommandService(
             return Failure(RateError.InvalidInput);
         }
 
+        if (await propertyRepository.FindByIdAsync(ratePlan.PropertyId, cancellationToken) is null)
+            return Failure(RateError.PropertyNotFound);
+
+        if (!await AreRoomTypesOfPropertyAsync(ratePlan.PropertyId, ratePlan.RoomTypeIds, cancellationToken))
+            return Failure(RateError.UnknownRoomType);
+
         if (await ratePlanRepository.ExistsByPropertyIdAndNameAsync(ratePlan.PropertyId, ratePlan.Name, null,
                 cancellationToken))
             return Failure(RateError.DuplicateRatePlanName);
@@ -58,6 +72,9 @@ public class RatePlanCommandService(
         var ratePlan = await ratePlanRepository.FindByIdAsync(command.RatePlanId, cancellationToken);
         if (ratePlan is null)
             return Failure(RateError.RatePlanNotFound);
+
+        if (!await AreRoomTypesOfPropertyAsync(ratePlan.PropertyId, command.RoomTypeIds ?? [], cancellationToken))
+            return Failure(RateError.UnknownRoomType);
 
         if (await ratePlanRepository.ExistsByPropertyIdAndNameAsync(ratePlan.PropertyId, command.Name?.Trim() ?? "",
                 ratePlan.Id, cancellationToken))
@@ -90,6 +107,9 @@ public class RatePlanCommandService(
         var ratePlan = await ratePlanRepository.FindByIdAsync(command.RatePlanId, cancellationToken);
         if (ratePlan is null)
             return new Result<IEnumerable<DailyRate>, RateError>.Failure(RateError.RatePlanNotFound);
+
+        if (!await AreRoomTypesOfPropertyAsync(ratePlan.PropertyId, [command.RoomTypeId], cancellationToken))
+            return new Result<IEnumerable<DailyRate>, RateError>.Failure(RateError.UnknownRoomType);
 
         if (!ratePlan.AppliesTo(command.RoomTypeId))
             return new Result<IEnumerable<DailyRate>, RateError>.Failure(RateError.RoomTypeNotInRatePlan);
@@ -130,6 +150,22 @@ public class RatePlanCommandService(
 
         await unitOfWork.CompleteAsync(cancellationToken);
         return new Result<IEnumerable<DailyRate>, RateError>.Success(dailyRates);
+    }
+
+    /// <summary>
+    ///     Checks that every room type exists and belongs to the property.
+    /// </summary>
+    private async Task<bool> AreRoomTypesOfPropertyAsync(int propertyId, IEnumerable<int> roomTypeIds,
+        CancellationToken cancellationToken)
+    {
+        var requested = roomTypeIds.Distinct().ToList();
+        if (requested.Count == 0)
+            return true;
+
+        var known = (await roomTypeRepository.FindByPropertyIdAsync(propertyId, cancellationToken))
+            .Select(roomType => roomType.Id)
+            .ToHashSet();
+        return requested.All(known.Contains);
     }
 
     private static Result<RatePlan, RateError> Failure(RateError error) =>

@@ -1,4 +1,5 @@
 using HosteraBackend.API.Rooms.Domain.Model.Aggregates;
+using HosteraBackend.API.Rooms.Domain.Model.Entities;
 using HosteraBackend.API.Rooms.Domain.Repositories;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
@@ -33,5 +34,12 @@ public class RatePlanRepository(AppDbContext context)
             .AnyAsync(ratePlan => ratePlan.PropertyId == propertyId
                                   && ratePlan.Name == name
                                   && ratePlan.Id != excludedRatePlanId, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> ExistsByRoomTypeIdAsync(int roomTypeId, CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<RatePlanRoomType>()
+            .AnyAsync(roomType => roomType.RoomTypeId == roomTypeId, cancellationToken);
     }
 }

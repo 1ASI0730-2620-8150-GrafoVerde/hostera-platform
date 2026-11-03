@@ -28,4 +28,15 @@ public interface IRatePlanRepository : IBaseRepository<RatePlan>
     /// <returns>A task containing true when the name is already used.</returns>
     Task<bool> ExistsByPropertyIdAndNameAsync(int propertyId, string name, int? excludedRatePlanId = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Indicates whether any rate plan lists the room type
+    /// </summary>
+    /// <remarks>
+    ///     Plans that apply to every room type do not list them, so they do not count.
+    /// </remarks>
+    /// <param name="roomTypeId">The identifier of the room type.</param>
+    /// <param name="cancellationToken">Token to cancel the asynchronous operation.</param>
+    /// <returns>A task containing true when at least one rate plan lists the room type.</returns>
+    Task<bool> ExistsByRoomTypeIdAsync(int roomTypeId, CancellationToken cancellationToken = default);
 }

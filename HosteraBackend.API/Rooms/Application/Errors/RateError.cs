@@ -28,5 +28,15 @@ public enum RateError
 	/// <summary>
 	/// The room type is not sold under the rate plan.
 	/// </summary>
-	RoomTypeNotInRatePlan
+	RoomTypeNotInRatePlan,
+
+	/// <summary>
+	/// The requested property does not exist.
+	/// </summary>
+	PropertyNotFound,
+
+	/// <summary>
+	/// One or more room types do not exist in the property of the rate plan.
+	/// </summary>
+	UnknownRoomType
 }
