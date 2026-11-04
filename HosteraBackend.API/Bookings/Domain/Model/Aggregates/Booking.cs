@@ -151,6 +151,46 @@ public partial class Booking
     public string? GuestRequest { get; private set; }
 
     /// <summary>
+    ///     Gets when the booking was confirmed, or null.
+    /// </summary>
+    public DateTimeOffset? ConfirmedAt { get; private set; }
+
+    /// <summary>
+    ///     Gets the identifier of the operator who confirmed the booking, or null.
+    /// </summary>
+    public int? ConfirmedBy { get; private set; }
+
+    /// <summary>
+    ///     Gets when the booking was cancelled, or null.
+    /// </summary>
+    public DateTimeOffset? CancelledAt { get; private set; }
+
+    /// <summary>
+    ///     Gets the identifier of the operator who cancelled the booking, or null.
+    /// </summary>
+    public int? CancelledBy { get; private set; }
+
+    /// <summary>
+    ///     Gets why the booking was cancelled, or null.
+    /// </summary>
+    public ECancellationReason? CancellationReason { get; private set; }
+
+    /// <summary>
+    ///     Gets the internal note about the cancellation, or null.
+    /// </summary>
+    public string? CancellationNote { get; private set; }
+
+    /// <summary>
+    ///     Gets when the booking was marked as a no-show, or null.
+    /// </summary>
+    public DateTimeOffset? NoShowAt { get; private set; }
+
+    /// <summary>
+    ///     Gets the identifier of the operator who marked the booking as a no-show, or null.
+    /// </summary>
+    public int? NoShowBy { get; private set; }
+
+    /// <summary>
     ///     Gets the number of nights of the stay.
     /// </summary>
     public int Nights => CheckOutDate.DayNumber - CheckInDate.DayNumber;
@@ -169,6 +209,48 @@ public partial class Booking
     ///     Gets whether the guest details, stay, guests, room and rate plan can still change.
     /// </summary>
     public bool IsEditable => Status is EBookingStatus.Pending or EBookingStatus.Confirmed;
+
+    /// <summary>
+    ///     Gets whether the booking can be confirmed: it is Pending.
+    /// </summary>
+    public bool CanBeConfirmed => Status == EBookingStatus.Pending;
+
+    /// <summary>
+    ///     Gets whether the booking can be cancelled: it is Pending or Confirmed.
+    /// </summary>
+    public bool CanBeCancelled => IsEditable;
+
+    /// <summary>
+    ///     Indicates whether the booking can be marked as a no-show: it is Confirmed and its check-in day has come.
+    /// </summary>
+    /// <param name="today">The current day of the property.</param>
+    /// <returns>True when the guest can be recorded as not arrived.</returns>
+    public bool CanBeMarkedNoShow(DateOnly today) => Status == EBookingStatus.Confirmed && CheckInDate <= today;
+
+    /// <summary>
+    ///     Indicates whether a cancelled booking can return to Pending: its stay has not started.
+    /// </summary>
+    /// <param name="today">The current day of the property.</param>
+    /// <returns>True when the booking can be restored, if its room is still available.</returns>
+    public bool CanBeRestored(DateOnly today) => Status == EBookingStatus.Cancelled && today <= CheckInDate;
+
+    /// <summary>
+    ///     Lists the statuses the booking can move to through a status change.
+    /// </summary>
+    /// <remarks>
+    ///     Check-in and check-out are separate operations with their own requirements, so they are not listed.
+    /// </remarks>
+    /// <param name="today">The current day of the property.</param>
+    /// <returns>The reachable statuses: Confirmed, Cancelled, NoShow or Pending.</returns>
+    public IReadOnlyList<EBookingStatus> AllowedTransitions(DateOnly today)
+    {
+        var transitions = new List<EBookingStatus>();
+        if (CanBeConfirmed) transitions.Add(EBookingStatus.Confirmed);
+        if (CanBeCancelled) transitions.Add(EBookingStatus.Cancelled);
+        if (CanBeMarkedNoShow(today)) transitions.Add(EBookingStatus.NoShow);
+        if (CanBeRestored(today)) transitions.Add(EBookingStatus.Pending);
+        return transitions;
+    }
 
     /// <summary>
     ///     Builds the code that follows the latest code of a property.
@@ -231,6 +313,95 @@ public partial class Booking
         ApplyDetails(command.GuestName, command.GuestEmail, command.GuestPhone, command.PreferredLanguage,
             command.CheckInDate, command.CheckOutDate, command.Guests, command.RoomTypeId, command.RoomId,
             command.RatePlanId, command.GuestRequest, totalAmount);
+    }
+
+    /// <summary>
+    ///     Confirms a pending booking. It keeps its room and can still be edited or cancelled.
+    /// </summary>
+    /// <param name="at">When the booking is confirmed.</param>
+    /// <param name="by">The identifier of the operator who confirms it.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the operator is not valid.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the booking is not Pending.</exception>
+    public void Confirm(DateTimeOffset at, int by)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(by);
+        if (!CanBeConfirmed)
+            throw new InvalidOperationException($"A {Status} booking cannot be confirmed.");
+
+        Status = EBookingStatus.Confirmed;
+        ConfirmedAt = at;
+        ConfirmedBy = by;
+    }
+
+    /// <summary>
+    ///     Ends a pending or confirmed booking without a stay, which releases its room.
+    /// </summary>
+    /// <param name="reason">Why the booking is cancelled.</param>
+    /// <param name="note">An internal note, required when the reason is Other.</param>
+    /// <param name="at">When the booking is cancelled.</param>
+    /// <param name="by">The identifier of the operator who cancels it.</param>
+    /// <exception cref="ArgumentException">Thrown when the operator is not valid or the Other reason has no note.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the booking is not Pending or Confirmed.</exception>
+    public void Cancel(ECancellationReason reason, string? note, DateTimeOffset at, int by)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(by);
+        if (!Enum.IsDefined(reason))
+            throw new ArgumentException("The cancellation reason is not valid.", nameof(reason));
+        if (reason == ECancellationReason.Other && string.IsNullOrWhiteSpace(note))
+            throw new ArgumentException("The Other cancellation reason requires a note.", nameof(note));
+        if (!CanBeCancelled)
+            throw new InvalidOperationException($"A {Status} booking cannot be cancelled.");
+
+        Status = EBookingStatus.Cancelled;
+        CancelledAt = at;
+        CancelledBy = by;
+        CancellationReason = reason;
+        CancellationNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+    }
+
+    /// <summary>
+    ///     Records that the guest of a confirmed booking did not arrive, which releases its room.
+    /// </summary>
+    /// <param name="today">The current day of the property.</param>
+    /// <param name="at">When the no-show is recorded.</param>
+    /// <param name="by">The identifier of the operator who records it.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the operator is not valid.</exception>
+    /// <exception cref="InvalidOperationException">
+    ///     Thrown when the booking is not Confirmed or its check-in day has not come.
+    /// </exception>
+    public void MarkNoShow(DateOnly today, DateTimeOffset at, int by)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(by);
+        if (!CanBeMarkedNoShow(today))
+            throw new InvalidOperationException($"A {Status} booking cannot be marked as a no-show on {today}.");
+
+        Status = EBookingStatus.NoShow;
+        NoShowAt = at;
+        NoShowBy = by;
+    }
+
+    /// <summary>
+    ///     Returns a cancelled booking to Pending with its saved total, so it must be confirmed again.
+    /// </summary>
+    /// <remarks>
+    ///     The caller checks that the room is still available for the stay.
+    /// </remarks>
+    /// <param name="today">The current day of the property.</param>
+    /// <exception cref="InvalidOperationException">
+    ///     Thrown when the booking is not Cancelled or its stay has started.
+    /// </exception>
+    public void Restore(DateOnly today)
+    {
+        if (!CanBeRestored(today))
+            throw new InvalidOperationException($"A {Status} booking cannot be restored on {today}.");
+
+        Status = EBookingStatus.Pending;
+        ConfirmedAt = null;
+        ConfirmedBy = null;
+        CancelledAt = null;
+        CancelledBy = null;
+        CancellationReason = null;
+        CancellationNote = null;
     }
 
     [GeneratedRegex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$")]
