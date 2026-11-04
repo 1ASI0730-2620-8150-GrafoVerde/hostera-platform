@@ -68,5 +68,20 @@ public enum BookingError
 	/// <summary>
 	/// The booking is not Pending or Confirmed, so its details cannot change.
 	/// </summary>
-	NotEditable
+	NotEditable,
+
+	/// <summary>
+	/// The booking cannot move from its current status to the requested one today.
+	/// </summary>
+	InvalidStatusChange,
+
+	/// <summary>
+	/// A cancellation needs a reason.
+	/// </summary>
+	CancellationReasonRequired,
+
+	/// <summary>
+	/// The Other cancellation reason needs a note.
+	/// </summary>
+	CancellationNoteRequired
 }
