@@ -40,10 +40,14 @@ public static class ModelBuilderExtensions
             booking.Property(b => b.RatePlanId).IsRequired();
             booking.Property(b => b.TotalAmount).IsRequired().HasPrecision(10, 2);
             booking.Property(b => b.GuestRequest).HasMaxLength(500);
+            booking.Property(b => b.CancellationReason).HasConversion<string>().HasMaxLength(30);
+            booking.Property(b => b.CancellationNote).HasMaxLength(500);
             booking.Ignore(b => b.Nights);
             booking.Ignore(b => b.LastNight);
             booking.Ignore(b => b.HoldsRoom);
             booking.Ignore(b => b.IsEditable);
+            booking.Ignore(b => b.CanBeConfirmed);
+            booking.Ignore(b => b.CanBeCancelled);
 
             // Each property numbers its own bookings, so a code is unique within its property
             booking.HasIndex(b => new { b.PropertyId, b.Code }).IsUnique();
