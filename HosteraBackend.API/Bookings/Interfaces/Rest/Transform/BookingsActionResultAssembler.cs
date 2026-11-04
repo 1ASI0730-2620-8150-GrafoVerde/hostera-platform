@@ -1,4 +1,6 @@
 using HosteraBackend.API.Bookings.Application.Errors;
+using HosteraBackend.API.Bookings.Domain.Model.Aggregates;
+using HosteraBackend.API.Bookings.Domain.Model.ValueObjects;
 using HosteraBackend.API.Shared.Application.Patterns;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,6 +22,7 @@ public static class BookingsActionResultAssembler
         BookingError.InactiveRatePlan => StatusCodes.Status409Conflict,
         BookingError.RoomUnavailable => StatusCodes.Status409Conflict,
         BookingError.NotEditable => StatusCodes.Status409Conflict,
+        BookingError.InvalidStatusChange => StatusCodes.Status409Conflict,
         _ => StatusCodes.Status400BadRequest
     };
 
@@ -40,6 +43,9 @@ public static class BookingsActionResultAssembler
         BookingError.RoomUnavailable =>
             "Another booking holds the room, or a Blocked or Out of service status covers it, on a night of the stay.",
         BookingError.NotEditable => "Only pending or confirmed bookings can be edited.",
+        BookingError.InvalidStatusChange => "The booking cannot move from its current status to the requested one today.",
+        BookingError.CancellationReasonRequired => "A cancellation needs a reason.",
+        BookingError.CancellationNoteRequired => "The other cancellation reason needs a note.",
         _ => "An unexpected error occurred."
     };
 
@@ -89,6 +95,27 @@ public static class BookingsActionResultAssembler
             statusCode: StatusCodes.Status400BadRequest,
             title: nameof(BookingError.InvalidInput),
             detail: exception.Message);
+    }
+
+    /// <summary>
+    ///     Returns a conflict problem details response for a status change that the booking does not allow, with its
+    ///     current status and the statuses it can move to.
+    /// </summary>
+    /// <param name="controller">The controller that handles the request.</param>
+    /// <param name="booking">The booking whose status could not change.</param>
+    /// <param name="allowedTransitions">The statuses the booking can move to today.</param>
+    /// <returns>The HTTP response.</returns>
+    public static IActionResult ToActionResultFromInvalidTransition(ControllerBase controller, Booking booking,
+        IEnumerable<EBookingStatus> allowedTransitions)
+    {
+        var problem = controller.ProblemDetailsFactory.CreateProblemDetails(
+            controller.HttpContext,
+            StatusCodes.Status409Conflict,
+            nameof(BookingError.InvalidStatusChange),
+            detail: ToMessageFromBookingError(BookingError.InvalidStatusChange));
+        problem.Extensions["currentStatus"] = BookingsEnumNames.ToName(booking.Status);
+        problem.Extensions["allowedTransitions"] = allowedTransitions.Select(BookingsEnumNames.ToName).ToList();
+        return new ObjectResult(problem) { StatusCode = StatusCodes.Status409Conflict };
     }
 
     private static IActionResult ToProblemFromBookingError(ControllerBase controller, BookingError error)
