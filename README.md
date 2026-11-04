@@ -22,11 +22,12 @@ The `Shared` context holds the building blocks used by every context: the base r
 | Context | Responsibility |
 | --- | --- |
 | Rooms & Availability | Properties, room types, rooms, operational status periods, room availability, rate plans, and daily rates. |
+| Bookings | Bookings of guest stays, their codes, totals, and room availability rules. |
 | Inventory Management | Storage locations, inventory items, their stock per location, and stock adjustments. |
 | Access Control | RFID credentials for guests and staff, staff members, and access events. |
 | Overview | The operational dashboard of a property and the comparison of properties. It only reads other contexts. |
 
-Bookings and payments are still in development.
+Booking status changes, payments, check-in, and check-out are still in development.
 
 ## Endpoints
 
@@ -54,6 +55,10 @@ All routes start with `/api/v1`.
 | Rooms | `PUT /rate-plans/{ratePlanId}` | Update a rate plan; plans are made inactive instead of deleted. |
 | Rooms | `PUT /rate-plans/{ratePlanId}/daily-rates` | Set the price of a range of nights for a room type, or return them to the base rate. |
 | Rooms | `GET /properties/{propertyId}/daily-rates?startDate=&endDate=` | List the daily rates of a property between two nights. |
+| Bookings | `GET /properties/{propertyId}/bookings` | List the bookings of a property, filtered by `status`, `roomId`, `from`, `to`, and `search`, and optionally paged with `page` and `pageSize` (`X-Total-Count` header). |
+| Bookings | `POST /properties/{propertyId}/bookings` | Create a pending booking; the server assigns its code and total. |
+| Bookings | `GET /bookings/{bookingId}` | Get a booking. |
+| Bookings | `PUT /bookings/{bookingId}` | Update a pending or confirmed booking. |
 | Inventory | `GET`, `POST /properties/{propertyId}/storage-locations` | List and create storage locations. |
 | Inventory | `GET`, `PUT`, `DELETE /storage-locations/{storageLocationId}` | Get, update, and delete a storage location. |
 | Inventory | `GET`, `POST /properties/{propertyId}/inventory-items` | List and create inventory items. |
@@ -89,7 +94,7 @@ Scalar lists every endpoint with its request and response resources.
 - .NET SDK 10
 - MySQL 8 running on `localhost:3306`, with a password for the `root` user
 
-### 1) Set the database password
+### 1) Set the database password and time zone
 
 The connection string in `HosteraBackend.API/appsettings.json` reads the password of the MySQL `root` user from the `HOSTERA_DB_PASSWORD` environment variable, so no credential is stored in the repository:
 
@@ -106,6 +111,8 @@ export HOSTERA_DB_PASSWORD='your-mysql-root-password'
 ```
 
 On Windows, define it as a user environment variable. Restart your terminal or IDE afterward.
+
+Rules that depend on the current day, such as when a booking can be checked in, use the time zone in `Hostera:TimeZone` (`America/Lima` by default).
 
 ### 2) Restore and run the API
 
@@ -157,6 +164,7 @@ Errors use the RFC 9457 problem details format. The `title` holds a stable error
 ```text
 HosteraBackend.API/
   AccessControl/        Access Control bounded context
+  Bookings/             Bookings bounded context
   Inventory/            Inventory Management bounded context
   Overview/             Overview bounded context
   Rooms/                Rooms & Availability bounded context

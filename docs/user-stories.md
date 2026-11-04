@@ -14,8 +14,8 @@ All routes start with `/api/v1` and follow the kebab-case route naming conventio
 | [TS002](#ts002--authenticate-an-operator-through-the-api) | Authenticate an operator through the API | EP002 | Pending |  |
 | [TS003](#ts003--enforce-property-scoped-authorization) | Enforce property-scoped authorization | EP002 | Pending |  |
 | [TS004](#ts004--retrieve-the-operational-dashboard-through-the-api) | Retrieve the operational dashboard through the API | EP002 | In progress | The endpoint exists; its room and booking sections stay unavailable until those contexts are implemented. |
-| [TS005](#ts005--query-bookings-through-the-api) | Query bookings through the API | EP003 | Pending |  |
-| [TS006](#ts006--create-and-update-bookings-through-the-api) | Create and update bookings through the API | EP003 | Pending |  |
+| [TS005](#ts005--query-bookings-through-the-api) | Query bookings through the API | EP003 | Implemented | Bookings are filtered by status, room, stay dates, and guest name or code, and paged with `page`, `pageSize`, and the `X-Total-Count` header. |
+| [TS006](#ts006--create-and-update-bookings-through-the-api) | Create and update bookings through the API | EP003 | In progress | Creation and edits are implemented with server-side codes, totals, and availability. Bookings are updated with `PUT /api/v1/bookings/{bookingId}`; concurrency checks are pending. |
 | [TS007](#ts007--transition-booking-status-through-the-api) | Transition booking status through the API | EP003 | Pending |  |
 | [TS008](#ts008--record-payments-through-the-api) | Record payments through the API | EP003 | Pending |  |
 | [TS009](#ts009--complete-check-in-and-check-out-through-the-api) | Complete check-in and check-out through the API | EP003 | Pending |  |
