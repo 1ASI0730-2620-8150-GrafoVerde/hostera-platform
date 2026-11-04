@@ -25,4 +25,12 @@ public interface IBookingCommandService
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The updated <see cref="Booking" />, or the <see cref="BookingError" /> that prevented it.</returns>
     Task<Result<Booking, BookingError>> Handle(UpdateBookingCommand command, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Handles the transition booking command.
+    /// </summary>
+    /// <param name="command">The <see cref="TransitionBookingCommand" /> command to handle.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The booking in its new status, or the <see cref="BookingError" /> that prevented the change.</returns>
+    Task<Result<Booking, BookingError>> Handle(TransitionBookingCommand command, CancellationToken cancellationToken);
 }

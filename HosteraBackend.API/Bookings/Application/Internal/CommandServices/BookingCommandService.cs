@@ -3,7 +3,9 @@ using HosteraBackend.API.Bookings.Application.Errors;
 using HosteraBackend.API.Bookings.Application.Internal.OutboundServices.ACL;
 using HosteraBackend.API.Bookings.Domain.Model.Aggregates;
 using HosteraBackend.API.Bookings.Domain.Model.Commands;
+using HosteraBackend.API.Bookings.Domain.Model.ValueObjects;
 using HosteraBackend.API.Bookings.Domain.Repositories;
+using HosteraBackend.API.Shared.Application.Internal.OutboundServices;
 using HosteraBackend.API.Shared.Application.Patterns;
 using HosteraBackend.API.Shared.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -19,12 +21,16 @@ namespace HosteraBackend.API.Bookings.Application.Internal.CommandServices;
 /// <param name="externalRoomService">
 ///     The <see cref="ExternalRoomService" /> that reads the Rooms bounded context.
 /// </param>
+/// <param name="clock">
+///     The <see cref="IClock" /> that provides the current moment and day of the property.
+/// </param>
 /// <param name="unitOfWork">
 ///     The <see cref="IUnitOfWork" /> to use.
 /// </param>
 public class BookingCommandService(
     IBookingRepository bookingRepository,
     ExternalRoomService externalRoomService,
+    IClock clock,
     IUnitOfWork unitOfWork)
     : IBookingCommandService
 {
@@ -113,6 +119,53 @@ public class BookingCommandService(
         catch (ArgumentException)
         {
             return Failure(BookingError.InvalidInput);
+        }
+
+        await unitOfWork.CompleteAsync(cancellationToken);
+        return new Result<Booking, BookingError>.Success(booking);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<Booking, BookingError>> Handle(TransitionBookingCommand command,
+        CancellationToken cancellationToken)
+    {
+        var booking = await bookingRepository.FindByIdAsync(command.BookingId, cancellationToken);
+        if (booking is null)
+            return Failure(BookingError.BookingNotFound);
+
+        if (command.OperatorId <= 0)
+            return Failure(BookingError.InvalidInput);
+
+        var today = clock.Today;
+        if (!booking.AllowedTransitions(today).Contains(command.TargetStatus))
+            return Failure(BookingError.InvalidStatusChange);
+
+        switch (command.TargetStatus)
+        {
+            case EBookingStatus.Confirmed:
+                booking.Confirm(clock.Now, command.OperatorId);
+                break;
+            case EBookingStatus.Cancelled:
+                if (command.CancellationReason is not { } reason)
+                    return Failure(BookingError.CancellationReasonRequired);
+                if (reason == ECancellationReason.Other && string.IsNullOrWhiteSpace(command.CancellationNote))
+                    return Failure(BookingError.CancellationNoteRequired);
+                booking.Cancel(reason, command.CancellationNote, clock.Now, command.OperatorId);
+                break;
+            case EBookingStatus.NoShow:
+                booking.MarkNoShow(today, clock.Now, command.OperatorId);
+                break;
+            case EBookingStatus.Pending:
+                // A restored booking holds its room again, so nobody else may have taken it meanwhile
+                if (await bookingRepository.ExistsRoomHoldAsync(booking.RoomId, booking.CheckInDate,
+                        booking.CheckOutDate, booking.Id, cancellationToken)
+                    || await externalRoomService.IsRoomOutOfOrderAsync(booking.RoomId, booking.CheckInDate,
+                        booking.CheckOutDate, cancellationToken))
+                    return Failure(BookingError.RoomUnavailable);
+                booking.Restore(today);
+                break;
+            default:
+                return Failure(BookingError.InvalidStatusChange);
         }
 
         await unitOfWork.CompleteAsync(cancellationToken);
