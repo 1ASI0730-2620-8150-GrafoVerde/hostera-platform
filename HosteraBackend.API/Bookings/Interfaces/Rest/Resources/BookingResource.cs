@@ -22,6 +22,14 @@ namespace HosteraBackend.API.Bookings.Interfaces.Rest.Resources;
 /// <param name="TotalAmount">The price of all nights, saved with the booking</param>
 /// <param name="GuestRequest">The note in which the guest asks for something for the stay, or null</param>
 /// <param name="CreatedAt">When the booking was created</param>
+/// <param name="ConfirmedAt">When the booking was confirmed, or null</param>
+/// <param name="ConfirmedBy">The operator who confirmed the booking, or null</param>
+/// <param name="CancelledAt">When the booking was cancelled, or null</param>
+/// <param name="CancelledBy">The operator who cancelled the booking, or null</param>
+/// <param name="CancellationReason">Why the booking was cancelled, or null</param>
+/// <param name="CancellationNote">The internal note about the cancellation, or null</param>
+/// <param name="NoShowAt">When the booking was marked as a no-show, or null</param>
+/// <param name="NoShowBy">The operator who marked the booking as a no-show, or null</param>
 public record BookingResource(
     int Id,
     int PropertyId,
@@ -39,4 +47,12 @@ public record BookingResource(
     int RatePlanId,
     decimal TotalAmount,
     string? GuestRequest,
-    DateTimeOffset? CreatedAt);
+    DateTimeOffset? CreatedAt,
+    DateTimeOffset? ConfirmedAt,
+    int? ConfirmedBy,
+    DateTimeOffset? CancelledAt,
+    int? CancelledBy,
+    string? CancellationReason,
+    string? CancellationNote,
+    DateTimeOffset? NoShowAt,
+    int? NoShowBy);

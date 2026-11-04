@@ -34,6 +34,14 @@ public static class BookingResourceFromEntityAssembler
             entity.RatePlanId,
             entity.TotalAmount,
             entity.GuestRequest,
-            entity.CreatedAt);
+            entity.CreatedAt,
+            entity.ConfirmedAt,
+            entity.ConfirmedBy,
+            entity.CancelledAt,
+            entity.CancelledBy,
+            entity.CancellationReason is { } reason ? BookingsEnumNames.ToName(reason) : null,
+            entity.CancellationNote,
+            entity.NoShowAt,
+            entity.NoShowBy);
     }
 }
