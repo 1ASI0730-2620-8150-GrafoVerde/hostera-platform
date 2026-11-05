@@ -569,15 +569,32 @@
                 +RatePlanId: int
                 +TotalAmount: decimal
                 +GuestRequest: string?
+                +ConfirmedAt: DateTimeOffset?
+                +ConfirmedBy: int?
+                +CancelledAt: DateTimeOffset?
+                +CancelledBy: int?
+                +CancellationReason: ECancellationReason?
+                +CancellationNote: string?
+                +NoShowAt: DateTimeOffset?
+                +NoShowBy: int?
                 +Nights: int
                 +LastNight: DateOnly
                 +HoldsRoom: bool
                 +IsEditable: bool
+                +CanBeConfirmed: bool
+                +CanBeCancelled: bool
+                +CanBeMarkedNoShow(DateOnly today): bool
+                +CanBeRestored(DateOnly today): bool
+                +AllowedTransitions(DateOnly today): IReadOnlyList<EBookingStatus>
                 +{static} NextCode(int propertyId, int latestNumber): string
                 +{static} NumberOf(string? code): int
                 +Overlaps(DateOnly checkInDate, DateOnly checkOutDate): bool
                 +HasSamePricingAs(int roomTypeId, int ratePlanId, DateOnly checkInDate, DateOnly checkOutDate): bool
                 +Update(UpdateBookingCommand command, decimal totalAmount): void
+                +Confirm(DateTimeOffset at, int by): void
+                +Cancel(ECancellationReason reason, string? note, DateTimeOffset at, int by): void
+                +MarkNoShow(DateOnly today, DateTimeOffset at, int by): void
+                +Restore(DateOnly today): void
             }
 
             enum EBookingStatus <<ValueObject>> {
@@ -587,6 +604,22 @@
                 CheckedOut
                 Cancelled
                 NoShow
+            }
+
+            enum ECancellationReason <<ValueObject>> {
+                GuestRequest
+                ChangeOfPlans
+                DuplicateBooking
+                PropertyUnable
+                Other
+            }
+
+            class TransitionBookingCommand <<record>> {
+                +BookingId: int
+                +TargetStatus: EBookingStatus
+                +OperatorId: int
+                +CancellationReason: ECancellationReason?
+                +CancellationNote: string?
             }
 
             enum EPreferredLanguage <<ValueObject>> {
@@ -679,6 +712,9 @@
                 OverCapacity
                 RoomUnavailable
                 NotEditable
+                InvalidStatusChange
+                CancellationReasonRequired
+                CancellationNoteRequired
             }
 
             class BookingPage <<record>> {
@@ -689,6 +725,7 @@
             interface IBookingCommandService {
                 +Handle(CreateBookingCommand command, CancellationToken cancellationToken): Task<Result<Booking, BookingError>>
                 +Handle(UpdateBookingCommand command, CancellationToken cancellationToken): Task<Result<Booking, BookingError>>
+                +Handle(TransitionBookingCommand command, CancellationToken cancellationToken): Task<Result<Booking, BookingError>>
             }
 
             interface IBookingQueryService {
@@ -697,7 +734,7 @@
             }
 
             class BookingCommandService implements IBookingCommandService {
-                +BookingCommandService(IBookingRepository bookingRepository, ExternalRoomService externalRoomService, IUnitOfWork unitOfWork)
+                +BookingCommandService(IBookingRepository bookingRepository, ExternalRoomService externalRoomService, IClock clock, IUnitOfWork unitOfWork)
             }
 
             class BookingQueryService implements IBookingQueryService {
@@ -727,15 +764,20 @@
             class BookingsController {
                 +GetBookingById(int bookingId, CancellationToken cancellationToken): Task<IActionResult>
                 +UpdateBooking(int bookingId, UpdateBookingResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +TransitionBooking(int bookingId, TransitionBookingResource resource, CancellationToken cancellationToken): Task<IActionResult>
             }
 
             class BookingsActionResultAssembler <<static>> {
                 +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, BookingError> result, Func<TValue, IActionResult> successAction): IActionResult
                 +ToActionResultFromQueryResult<TValue>(ControllerBase controller, TValue? value, BookingError notFoundError, Func<TValue, IActionResult> successAction): IActionResult
                 +ToActionResultFromInvalidResource(ControllerBase controller, ArgumentException exception): IActionResult
+                +ToActionResultFromInvalidTransition(ControllerBase controller, Booking booking, IEnumerable<EBookingStatus> allowedTransitions): IActionResult
             }
         }
 
+        Booking ..> ECancellationReason
+        BookingCommandService ..> IClock
+        BookingsController ..> IClock
         Booking ..> EBookingStatus
         Booking ..> EPreferredLanguage
         BookingCommandService ..> IBookingRepository
