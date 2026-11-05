@@ -83,5 +83,30 @@ public enum BookingError
 	/// <summary>
 	/// The Other cancellation reason needs a note.
 	/// </summary>
-	CancellationNoteRequired
+	CancellationNoteRequired,
+
+	/// <summary>
+	/// Only Pending, Confirmed or Checked in bookings accept payments.
+	/// </summary>
+	PaymentsNotAccepted,
+
+	/// <summary>
+	/// The payment amount is not positive or has more than two decimals.
+	/// </summary>
+	InvalidPaymentAmount,
+
+	/// <summary>
+	/// The payment amount exceeds the balance due of the booking.
+	/// </summary>
+	PaymentExceedsBalance,
+
+	/// <summary>
+	/// The payment was received in the future.
+	/// </summary>
+	InvalidPaymentDate,
+
+	/// <summary>
+	/// The idempotency key was already used for a different payment of the booking.
+	/// </summary>
+	IdempotencyKeyReused
 }
