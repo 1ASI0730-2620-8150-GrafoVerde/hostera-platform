@@ -1,7 +1,7 @@
 namespace HosteraBackend.API.AccessControl.Domain.Model.ValueObjects;
 
 /// <summary>
-///     Value object representing the period in which an RFID credential grants access.
+///     Value object representing the period in which a credential grants access.
 /// </summary>
 public sealed record ValidityPeriod
 {
@@ -9,9 +9,9 @@ public sealed record ValidityPeriod
     ///     Initializes a new <see cref="ValidityPeriod"/> with the given start and end.
     /// </summary>
     /// <param name="validFrom">The moment the credential starts granting access.</param>
-    /// <param name="validUntil">The moment the credential stops granting access. Must be later than <paramref name="validFrom"/>.</param>
+    /// <param name="validUntil">The moment the credential stops granting access, or null for permanent access. Must be later than <paramref name="validFrom"/>.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="validUntil"/> is not later than <paramref name="validFrom"/>.</exception>
-    public ValidityPeriod(DateTimeOffset validFrom, DateTimeOffset validUntil)
+    public ValidityPeriod(DateTimeOffset validFrom, DateTimeOffset? validUntil)
     {
         if (validUntil <= validFrom)
             throw new ArgumentException("ValidUntil must be later than ValidFrom.", nameof(validUntil));
@@ -26,14 +26,16 @@ public sealed record ValidityPeriod
     public DateTimeOffset ValidFrom { get; }
 
     /// <summary>
-    ///     Gets the moment the credential stops granting access.
+    ///     Gets the moment the credential stops granting access, or null for permanent access.
     /// </summary>
-    public DateTimeOffset ValidUntil { get; }
+    public DateTimeOffset? ValidUntil { get; }
 
     /// <summary>
-    ///     Indicates whether the given moment falls within this period.
+    ///     Creates a period with the same start that ends at the given moment, unless it already ends earlier.
     /// </summary>
-    /// <param name="moment">The moment to evaluate.</param>
-    /// <returns>True when the moment is between ValidFrom and ValidUntil.</returns>
-    public bool Includes(DateTimeOffset moment) => moment >= ValidFrom && moment < ValidUntil;
+    /// <param name="moment">The moment the access must end.</param>
+    /// <returns>The period that ends at the earliest of both moments.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="moment"/> is not later than the start of the period.</exception>
+    public ValidityPeriod EndingAt(DateTimeOffset moment) =>
+        ValidUntil < moment ? this : new ValidityPeriod(ValidFrom, moment);
 }
