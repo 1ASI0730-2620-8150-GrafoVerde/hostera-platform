@@ -211,6 +211,28 @@ public partial class Booking
     public bool IsEditable => Status is EBookingStatus.Pending or EBookingStatus.Confirmed;
 
     /// <summary>
+    ///     Gets whether payments can be recorded for the booking: it is Pending, Confirmed or Checked in.
+    /// </summary>
+    public bool AcceptsPayments => HoldsRoom;
+
+    /// <summary>
+    ///     Calculates what is still owed: the total minus the payments, never below zero.
+    /// </summary>
+    /// <param name="paidAmount">The sum of the payments of the booking.</param>
+    /// <returns>The balance due.</returns>
+    public decimal BalanceDue(decimal paidAmount) => Math.Max(TotalAmount - paidAmount, 0);
+
+    /// <summary>
+    ///     Describes how much of the total has been paid.
+    /// </summary>
+    /// <param name="paidAmount">The sum of the payments of the booking.</param>
+    /// <returns>Paid when nothing is owed, PartiallyPaid when some payments exist, and Unpaid otherwise.</returns>
+    public EPaymentStatus PaymentStatus(decimal paidAmount) =>
+        BalanceDue(paidAmount) == 0 ? EPaymentStatus.Paid
+        : paidAmount > 0 ? EPaymentStatus.PartiallyPaid
+        : EPaymentStatus.Unpaid;
+
+    /// <summary>
     ///     Gets whether the booking can be confirmed: it is Pending.
     /// </summary>
     public bool CanBeConfirmed => Status == EBookingStatus.Pending;
