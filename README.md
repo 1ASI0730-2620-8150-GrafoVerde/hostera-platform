@@ -27,7 +27,7 @@ The `Shared` context holds the building blocks used by every context: the base r
 | Access Control | RFID credentials for guests and staff, staff members, and access events. |
 | Overview | The operational dashboard of a property and the comparison of properties. It only reads other contexts. |
 
-Booking status changes, payments, check-in, and check-out are still in development.
+Payments, check-in, and check-out are still in development.
 
 ## Endpoints
 
@@ -59,6 +59,7 @@ All routes start with `/api/v1`.
 | Bookings | `POST /properties/{propertyId}/bookings` | Create a pending booking; the server assigns its code and total. |
 | Bookings | `GET /bookings/{bookingId}` | Get a booking. |
 | Bookings | `PUT /bookings/{bookingId}` | Update a pending or confirmed booking. |
+| Bookings | `POST /bookings/{bookingId}/transitions` | Confirm, cancel, mark as a no-show, or restore a booking. A rejected transition returns the current status and the allowed transitions. |
 | Inventory | `GET`, `POST /properties/{propertyId}/storage-locations` | List and create storage locations. |
 | Inventory | `GET`, `PUT`, `DELETE /storage-locations/{storageLocationId}` | Get, update, and delete a storage location. |
 | Inventory | `GET`, `POST /properties/{propertyId}/inventory-items` | List and create inventory items. |
