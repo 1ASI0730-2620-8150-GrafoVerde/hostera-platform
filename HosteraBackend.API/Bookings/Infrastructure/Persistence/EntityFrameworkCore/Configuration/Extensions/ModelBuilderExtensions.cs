@@ -9,7 +9,7 @@ namespace HosteraBackend.API.Bookings.Infrastructure.Persistence.EntityFramework
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    ///     Applies the mapping of bookings.
+    ///     Applies the mapping of bookings and payments.
     /// </summary>
     /// <param name="builder">The model builder of the application context.</param>
     public static void ApplyBookingsConfiguration(this ModelBuilder builder)
@@ -48,10 +48,34 @@ public static class ModelBuilderExtensions
             booking.Ignore(b => b.IsEditable);
             booking.Ignore(b => b.CanBeConfirmed);
             booking.Ignore(b => b.CanBeCancelled);
+            booking.Ignore(b => b.AcceptsPayments);
 
             // Each property numbers its own bookings, so a code is unique within its property
             booking.HasIndex(b => new { b.PropertyId, b.Code }).IsUnique();
             booking.HasIndex(b => new { b.RoomId, b.CheckInDate });
+        });
+
+        builder.Entity<Payment>(payment =>
+        {
+            payment.HasKey(p => p.Id);
+            payment.Property(p => p.Id).IsRequired().ValueGeneratedOnAdd();
+            payment.Property(p => p.PropertyId).IsRequired();
+            payment.Property(p => p.BookingId).IsRequired();
+            payment.Property(p => p.Amount).IsRequired().HasPrecision(10, 2);
+            payment.Property(p => p.Method).HasConversion<string>().IsRequired().HasMaxLength(20);
+            payment.Property(p => p.PaidAt).IsRequired();
+            payment.Property(p => p.Reference).HasMaxLength(Payment.MaxReferenceLength);
+            payment.Property(p => p.RecordedBy).IsRequired();
+            payment.Property(p => p.IdempotencyKey).HasMaxLength(Payment.MaxIdempotencyKeyLength);
+
+            // A repeated request with the same key cannot record a second payment, even when both arrive together
+            payment.HasIndex(p => new { p.BookingId, p.IdempotencyKey }).IsUnique();
+            payment.HasIndex(p => p.PropertyId);
+
+            payment.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(p => p.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
