@@ -56,7 +56,8 @@ public partial class Credential
         BookingId = command.BookingId;
         BookingCode = command.BookingCode.Trim();
         RoomId = command.RoomId;
-        ValidityPeriod = command.ValidityPeriod;
+        // Each card of the command needs its own instance, because EF Core tracks owned values per credential
+        ValidityPeriod = new ValidityPeriod(command.ValidityPeriod.ValidFrom, command.ValidityPeriod.ValidUntil);
         IssuedAt = DateTimeOffset.UtcNow;
         IssuedBy = command.IssuedBy;
     }
@@ -68,28 +69,50 @@ public partial class Credential
     ///     This constructor acts as the command handler for IssueStaffCredentialCommand.
     /// </remarks>
     /// <param name="command">The IssueStaffCredentialCommand command</param>
-    /// <exception cref="ArgumentNullException">Thrown when the command, card identifier or validity period is null.</exception>
-    /// <exception cref="ArgumentException">Thrown when the holder name is empty.</exception>
+    /// <param name="staffMember">The StaffMember who receives the credential</param>
+    /// <exception cref="ArgumentNullException">Thrown when the command, staff member, card identifier or validity period is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when an identifier is not positive.</exception>
-    public Credential(IssueStaffCredentialCommand command)
+    public Credential(IssueStaffCredentialCommand command, StaffMember staffMember)
     {
         ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(staffMember);
         ArgumentNullException.ThrowIfNull(command.CardId);
         ArgumentNullException.ThrowIfNull(command.ValidityPeriod);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.PropertyId);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.StaffMemberId);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.IssuedBy);
-        ArgumentException.ThrowIfNullOrWhiteSpace(command.HolderName);
 
         PropertyId = command.PropertyId;
         CardId = command.CardId;
         Type = ECredentialType.StaffCredential;
-        HolderName = command.HolderName.Trim();
-        StaffMemberId = command.StaffMemberId;
+        HolderName = staffMember.Name;
+        StaffMemberId = staffMember.Id;
         Scope = command.Scope;
         ValidityPeriod = command.ValidityPeriod;
         IssuedAt = DateTimeOffset.UtcNow;
         IssuedBy = command.IssuedBy;
+    }
+
+    /// <summary>
+    ///     Creates the replacement of a credential on a new card.
+    /// </summary>
+    /// <param name="replaced">The credential being replaced</param>
+    /// <param name="cardId">The CardId of the new card</param>
+    /// <param name="validityPeriod">The ValidityPeriod of the new card</param>
+    /// <param name="issuedBy">The identifier of the operator who issues the new card</param>
+    private Credential(Credential replaced, CardId cardId, ValidityPeriod validityPeriod, int issuedBy)
+    {
+        PropertyId = replaced.PropertyId;
+        CardId = cardId;
+        Type = replaced.Type;
+        HolderName = replaced.HolderName;
+        BookingId = replaced.BookingId;
+        BookingCode = replaced.BookingCode;
+        RoomId = replaced.RoomId;
+        StaffMemberId = replaced.StaffMemberId;
+        Scope = replaced.Scope;
+        ValidityPeriod = validityPeriod;
+        IssuedAt = DateTimeOffset.UtcNow;
+        IssuedBy = issuedBy;
     }
 
     /// <summary>
@@ -198,6 +221,24 @@ public partial class Credential
             throw new InvalidOperationException("Only an active or scheduled credential can be revoked.");
 
         Revocation = new Revocation(reason, note, now, operatorId);
+    }
+
+    /// <summary>
+    ///     Revokes this credential as replaced and creates its replacement on a new card with the same end of validity.
+    /// </summary>
+    /// <param name="cardId">The CardId of the new card.</param>
+    /// <param name="operatorId">The identifier of the operator who replaces the credential.</param>
+    /// <returns>The replacement credential.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when the card identifier is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the credential is expired or already revoked.</exception>
+    public Credential ReplaceWith(CardId cardId, int operatorId)
+    {
+        ArgumentNullException.ThrowIfNull(cardId);
+
+        Revoke(ERevocationReason.Replaced, null, operatorId);
+
+        var validFrom = ValidityPeriod.ValidFrom > Revocation!.At ? ValidityPeriod.ValidFrom : Revocation.At;
+        return new Credential(this, cardId, new ValidityPeriod(validFrom, ValidityPeriod.ValidUntil), operatorId);
     }
 
     /// <summary>
