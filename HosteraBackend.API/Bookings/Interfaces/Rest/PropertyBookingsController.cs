@@ -14,13 +14,15 @@ namespace HosteraBackend.API.Bookings.Interfaces.Rest;
 /// </summary>
 /// <param name="bookingCommandService">The booking command service</param>
 /// <param name="bookingQueryService">The booking query service</param>
+/// <param name="paymentQueryService">The payment query service, which provides the balance of each booking</param>
 [ApiController]
 [Route("api/v1/properties/{propertyId:int}/bookings")]
 [Produces(MediaTypeNames.Application.Json)]
 [Tags("Booking Endpoints")]
 public class PropertyBookingsController(
     IBookingCommandService bookingCommandService,
-    IBookingQueryService bookingQueryService)
+    IBookingQueryService bookingQueryService,
+    IPaymentQueryService paymentQueryService)
     : ControllerBase
 {
     private const int MaxPageSize = 200;
@@ -77,9 +79,15 @@ public class PropertyBookingsController(
                 page,
                 pageSize);
             var bookingPage = await bookingQueryService.Handle(query, cancellationToken);
+            var bookings = bookingPage.Bookings.ToList();
+            var paidAmounts = await paymentQueryService.Handle(
+                new GetPaidAmountsByBookingIdsQuery(bookings.Select(booking => booking.Id).ToList()),
+                cancellationToken);
 
             Response.Headers["X-Total-Count"] = bookingPage.TotalCount.ToString();
-            return Ok(bookingPage.Bookings.Select(BookingResourceFromEntityAssembler.ToResourceFromEntity));
+            return Ok(bookings.Select(booking =>
+                BookingResourceFromEntityAssembler.ToResourceFromEntity(booking,
+                    paidAmounts.GetValueOrDefault(booking.Id))));
         }
         catch (ArgumentException exception)
         {
@@ -118,7 +126,7 @@ public class PropertyBookingsController(
                     nameof(BookingsController.GetBookingById),
                     "Bookings",
                     new { bookingId = created.Id },
-                    BookingResourceFromEntityAssembler.ToResourceFromEntity(created)));
+                    BookingResourceFromEntityAssembler.ToResourceFromEntity(created, 0)));
         }
         catch (ArgumentException exception)
         {

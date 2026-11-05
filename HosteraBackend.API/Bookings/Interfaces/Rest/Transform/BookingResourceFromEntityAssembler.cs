@@ -13,8 +13,9 @@ public static class BookingResourceFromEntityAssembler
     ///     Converts a <see cref="Booking" /> aggregate to its <see cref="BookingResource" />.
     /// </summary>
     /// <param name="entity">The <see cref="Booking" /> to convert. Must not be null.</param>
-    /// <returns>A <see cref="BookingResource" /> representing the booking.</returns>
-    public static BookingResource ToResourceFromEntity(Booking entity)
+    /// <param name="paidAmount">The sum of the payments of the booking.</param>
+    /// <returns>A <see cref="BookingResource" /> representing the booking and its balance.</returns>
+    public static BookingResource ToResourceFromEntity(Booking entity, decimal paidAmount)
     {
         ArgumentNullException.ThrowIfNull(entity);
         return new BookingResource(
@@ -33,6 +34,9 @@ public static class BookingResourceFromEntityAssembler
             entity.RoomId,
             entity.RatePlanId,
             entity.TotalAmount,
+            paidAmount,
+            entity.BalanceDue(paidAmount),
+            BookingsEnumNames.ToName(entity.PaymentStatus(paidAmount)),
             entity.GuestRequest,
             entity.CreatedAt,
             entity.ConfirmedAt,

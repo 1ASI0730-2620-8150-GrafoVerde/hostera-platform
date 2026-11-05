@@ -20,6 +20,9 @@ namespace HosteraBackend.API.Bookings.Interfaces.Rest.Resources;
 /// <param name="RoomId">The identifier of the booked room</param>
 /// <param name="RatePlanId">The identifier of the rate plan that prices the nights</param>
 /// <param name="TotalAmount">The price of all nights, saved with the booking</param>
+/// <param name="PaidAmount">The sum of the payments of the booking</param>
+/// <param name="BalanceDue">The total minus the payments, never below zero</param>
+/// <param name="PaymentStatus">How much of the total is paid: unpaid, partially-paid or paid</param>
 /// <param name="GuestRequest">The note in which the guest asks for something for the stay, or null</param>
 /// <param name="CreatedAt">When the booking was created</param>
 /// <param name="ConfirmedAt">When the booking was confirmed, or null</param>
@@ -46,6 +49,9 @@ public record BookingResource(
     int RoomId,
     int RatePlanId,
     decimal TotalAmount,
+    decimal PaidAmount,
+    decimal BalanceDue,
+    string PaymentStatus,
     string? GuestRequest,
     DateTimeOffset? CreatedAt,
     DateTimeOffset? ConfirmedAt,

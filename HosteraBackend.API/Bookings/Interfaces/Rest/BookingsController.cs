@@ -17,6 +17,7 @@ namespace HosteraBackend.API.Bookings.Interfaces.Rest;
 /// </summary>
 /// <param name="bookingCommandService">The booking command service</param>
 /// <param name="bookingQueryService">The booking query service</param>
+/// <param name="paymentQueryService">The payment query service, which provides the balance of each booking</param>
 /// <param name="clock">The clock that provides the current day of the property</param>
 [ApiController]
 [Route("api/v1/bookings")]
@@ -25,6 +26,7 @@ namespace HosteraBackend.API.Bookings.Interfaces.Rest;
 public class BookingsController(
     IBookingCommandService bookingCommandService,
     IBookingQueryService bookingQueryService,
+    IPaymentQueryService paymentQueryService,
     IClock clock)
     : ControllerBase
 {
@@ -42,9 +44,11 @@ public class BookingsController(
     public async Task<IActionResult> GetBookingById([FromRoute] int bookingId, CancellationToken cancellationToken)
     {
         var booking = await bookingQueryService.Handle(new GetBookingByIdQuery(bookingId), cancellationToken);
+        if (booking is null)
+            return BookingsActionResultAssembler.ToActionResultFromQueryResult(this, booking,
+                BookingError.BookingNotFound, Ok);
 
-        return BookingsActionResultAssembler.ToActionResultFromQueryResult(this, booking,
-            BookingError.BookingNotFound, found => Ok(BookingResourceFromEntityAssembler.ToResourceFromEntity(found)));
+        return Ok(await ToResourceAsync(booking, cancellationToken));
     }
 
     /// <summary>
@@ -73,8 +77,9 @@ public class BookingsController(
             var command = UpdateBookingCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId);
             var result = await bookingCommandService.Handle(command, cancellationToken);
 
-            return BookingsActionResultAssembler.ToActionResultFromResult(this, result,
-                updated => Ok(BookingResourceFromEntityAssembler.ToResourceFromEntity(updated)));
+            if (result is Result<Booking, BookingError>.Success { Value: var updated })
+                return Ok(await ToResourceAsync(updated, cancellationToken));
+            return BookingsActionResultAssembler.ToActionResultFromResult(this, result, Ok);
         }
         catch (ArgumentException exception)
         {
@@ -118,12 +123,21 @@ public class BookingsController(
                         booking.AllowedTransitions(clock.Today));
             }
 
-            return BookingsActionResultAssembler.ToActionResultFromResult(this, result,
-                updated => Ok(BookingResourceFromEntityAssembler.ToResourceFromEntity(updated)));
+            if (result is Result<Booking, BookingError>.Success { Value: var changed })
+                return Ok(await ToResourceAsync(changed, cancellationToken));
+            return BookingsActionResultAssembler.ToActionResultFromResult(this, result, Ok);
         }
         catch (ArgumentException exception)
         {
             return BookingsActionResultAssembler.ToActionResultFromInvalidResource(this, exception);
         }
+    }
+
+    private async Task<BookingResource> ToResourceAsync(Booking booking, CancellationToken cancellationToken)
+    {
+        var paidAmounts =
+            await paymentQueryService.Handle(new GetPaidAmountsByBookingIdsQuery([booking.Id]), cancellationToken);
+        return BookingResourceFromEntityAssembler.ToResourceFromEntity(booking,
+            paidAmounts.GetValueOrDefault(booking.Id));
     }
 }
