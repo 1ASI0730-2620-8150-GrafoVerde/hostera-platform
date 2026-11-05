@@ -1,0 +1,71 @@
+using HosteraBackend.API.Rooms.Domain.Model.Aggregates;
+using HosteraBackend.API.Rooms.Domain.Model.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
+
+/// <summary>
+///     Entity Framework Core mapping of the Rooms bounded context.
+/// </summary>
+public static class ModelBuilderExtensions
+{
+    /// <summary>
+    ///     Applies the mapping of rate plans and daily rates.
+    /// </summary>
+    /// <param name="builder">The model builder of the application context.</param>
+    public static void ApplyRoomsConfiguration(this ModelBuilder builder)
+    {
+        builder.Entity<RatePlan>(ratePlan =>
+        {
+            ratePlan.HasKey(r => r.Id);
+            ratePlan.Property(r => r.Id).IsRequired().ValueGeneratedOnAdd();
+            ratePlan.Property(r => r.PropertyId).IsRequired();
+            ratePlan.Property(r => r.Name).IsRequired().HasMaxLength(80);
+            ratePlan.Property(r => r.Refundable).IsRequired();
+            ratePlan.Property(r => r.CancellationPolicy).HasColumnType("text");
+            ratePlan.Property(r => r.Status).HasConversion<string>().IsRequired().HasMaxLength(20);
+            ratePlan.Ignore(r => r.RoomTypeIds);
+            ratePlan.Ignore(r => r.IncludedServices);
+            ratePlan.HasIndex(r => new { r.PropertyId, r.Name }).IsUnique();
+
+            ratePlan.HasMany(r => r.RoomTypes)
+                .WithOne()
+                .HasForeignKey(roomType => roomType.RatePlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+            ratePlan.Navigation(r => r.RoomTypes).HasField("_roomTypes").AutoInclude();
+
+            ratePlan.HasMany(r => r.Services)
+                .WithOne()
+                .HasForeignKey(service => service.RatePlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+            ratePlan.Navigation(r => r.Services).HasField("_services").AutoInclude();
+        });
+
+        builder.Entity<RatePlanRoomType>(roomType =>
+        {
+            roomType.HasKey(r => new { r.RatePlanId, r.RoomTypeId });
+        });
+
+        builder.Entity<RatePlanService>(service =>
+        {
+            service.HasKey(s => new { s.RatePlanId, s.Service });
+            service.Property(s => s.Service).HasConversion<string>().IsRequired().HasMaxLength(30);
+        });
+
+        builder.Entity<DailyRate>(dailyRate =>
+        {
+            dailyRate.HasKey(d => d.Id);
+            dailyRate.Property(d => d.Id).IsRequired().ValueGeneratedOnAdd();
+            dailyRate.Property(d => d.PropertyId).IsRequired();
+            dailyRate.Property(d => d.RoomTypeId).IsRequired();
+            dailyRate.Property(d => d.Date).HasColumnName("rate_date").IsRequired();
+            dailyRate.Property(d => d.Amount).IsRequired().HasPrecision(10, 2);
+            dailyRate.HasIndex(d => new { d.RatePlanId, d.RoomTypeId, d.Date }).IsUnique();
+
+            dailyRate.HasOne<RatePlan>()
+                .WithMany()
+                .HasForeignKey(d => d.RatePlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+}
