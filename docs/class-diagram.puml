@@ -581,6 +581,9 @@
                 +LastNight: DateOnly
                 +HoldsRoom: bool
                 +IsEditable: bool
+                +AcceptsPayments: bool
+                +BalanceDue(decimal paidAmount): decimal
+                +PaymentStatus(decimal paidAmount): EPaymentStatus
                 +CanBeConfirmed: bool
                 +CanBeCancelled: bool
                 +CanBeMarkedNoShow(DateOnly today): bool
@@ -595,6 +598,52 @@
                 +Cancel(ECancellationReason reason, string? note, DateTimeOffset at, int by): void
                 +MarkNoShow(DateOnly today, DateTimeOffset at, int by): void
                 +Restore(DateOnly today): void
+            }
+
+            class Payment <<Aggregate>> implements IAuditableEntity {
+                +MaxReferenceLength: int = 80
+                +MaxIdempotencyKeyLength: int = 100
+                +Payment(RecordPaymentCommand command, int propertyId)
+                +Id: int
+                +PropertyId: int
+                +BookingId: int
+                +Amount: decimal
+                +Method: EPaymentMethod
+                +PaidAt: DateTimeOffset
+                +Reference: string?
+                +RecordedBy: int
+                +IdempotencyKey: string?
+                +Matches(RecordPaymentCommand command): bool
+            }
+
+            enum EPaymentMethod <<ValueObject>> {
+                Cash
+                CardTerminal
+                BankTransfer
+                Other
+            }
+
+            enum EPaymentStatus <<ValueObject>> {
+                Unpaid
+                PartiallyPaid
+                Paid
+            }
+
+            class RecordPaymentCommand <<record>> {
+                +BookingId: int
+                +Amount: decimal
+                +Method: EPaymentMethod
+                +PaidAt: DateTimeOffset
+                +Reference: string?
+                +RecordedBy: int
+                +IdempotencyKey: string?
+            }
+
+            interface IPaymentRepository extends IBaseRepository {
+                +FindByBookingIdAsync(int bookingId, CancellationToken cancellationToken): Task<IEnumerable<Payment>>
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<Payment>>
+                +FindByBookingIdAndIdempotencyKeyAsync(int bookingId, string idempotencyKey, CancellationToken cancellationToken): Task<Payment?>
+                +SumAmountsByBookingIdsAsync(IReadOnlyCollection<int> bookingIds, CancellationToken cancellationToken): Task<IReadOnlyDictionary<int, decimal>>
             }
 
             enum EBookingStatus <<ValueObject>> {
@@ -715,6 +764,36 @@
                 InvalidStatusChange
                 CancellationReasonRequired
                 CancellationNoteRequired
+                PaymentsNotAccepted
+                InvalidPaymentAmount
+                PaymentExceedsBalance
+                InvalidPaymentDate
+                IdempotencyKeyReused
+            }
+
+            class RecordedPayment <<record>> {
+                +Payment: Payment
+                +BalanceDue: decimal
+                +PaymentStatus: EPaymentStatus
+                +IsReplay: bool
+            }
+
+            interface IPaymentCommandService {
+                +Handle(RecordPaymentCommand command, CancellationToken cancellationToken): Task<Result<RecordedPayment, BookingError>>
+            }
+
+            interface IPaymentQueryService {
+                +Handle(GetAllPaymentsByBookingIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<Payment>>
+                +Handle(GetAllPaymentsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<Payment>>
+                +Handle(GetPaidAmountsByBookingIdsQuery query, CancellationToken cancellationToken): Task<IReadOnlyDictionary<int, decimal>>
+            }
+
+            class PaymentCommandService implements IPaymentCommandService {
+                +PaymentCommandService(IPaymentRepository paymentRepository, IBookingRepository bookingRepository, IClock clock, IUnitOfWork unitOfWork)
+            }
+
+            class PaymentQueryService implements IPaymentQueryService {
+                +PaymentQueryService(IPaymentRepository paymentRepository)
             }
 
             class BookingPage <<record>> {
@@ -753,6 +832,7 @@
 
         package "Infrastructure" as BookingsInfrastructure {
             class BookingRepository extends BaseRepository implements IBookingRepository
+            class PaymentRepository extends BaseRepository implements IPaymentRepository
         }
 
         package "Interfaces.Rest" as BookingsRest {
@@ -767,6 +847,16 @@
                 +TransitionBooking(int bookingId, TransitionBookingResource resource, CancellationToken cancellationToken): Task<IActionResult>
             }
 
+            class BookingPaymentsController {
+                +IdempotencyKeyHeader: string = "Idempotency-Key"
+                +GetPaymentsByBookingId(int bookingId, CancellationToken cancellationToken): Task<IActionResult>
+                +RecordPayment(int bookingId, RecordPaymentResource resource, string? idempotencyKey, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyPaymentsController {
+                +GetPaymentsByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
             class BookingsActionResultAssembler <<static>> {
                 +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, BookingError> result, Func<TValue, IActionResult> successAction): IActionResult
                 +ToActionResultFromQueryResult<TValue>(ControllerBase controller, TValue? value, BookingError notFoundError, Func<TValue, IActionResult> successAction): IActionResult
@@ -775,6 +865,18 @@
             }
         }
 
+        Booking "1" -- "0..*" Payment : is paid by >
+        Payment ..> EPaymentMethod
+        Booking ..> EPaymentStatus
+        PaymentCommandService ..> IPaymentRepository
+        PaymentCommandService ..> IBookingRepository
+        PaymentCommandService ..> IClock
+        PaymentQueryService ..> IPaymentRepository
+        BookingPaymentsController ..> IPaymentCommandService
+        BookingPaymentsController ..> IPaymentQueryService
+        PropertyPaymentsController ..> IPaymentQueryService
+        BookingsController ..> IPaymentQueryService
+        PropertyBookingsController ..> IPaymentQueryService
         Booking ..> ECancellationReason
         BookingCommandService ..> IClock
         BookingsController ..> IClock
