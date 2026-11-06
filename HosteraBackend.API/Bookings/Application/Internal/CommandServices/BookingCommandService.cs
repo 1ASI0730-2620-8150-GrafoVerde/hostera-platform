@@ -34,7 +34,7 @@ public class BookingCommandService(
     IUnitOfWork unitOfWork)
     : IBookingCommandService
 {
-    private const int MaxCodeAttempts = 3;
+    private const int MaxCodeAttempts = 10;
 
     /// <inheritdoc />
     public async Task<Result<Booking, BookingError>> Handle(CreateBookingCommand command,
@@ -53,15 +53,18 @@ public class BookingCommandService(
         if (totalAmount is null)
             return Failure(BookingError.RoomTypeNotFound);
 
-        // The unique code index rejects a code that another request took first, so the next number is tried
+        // The unique code index rejects a code that another request took first. A retry never proposes a code that
+        // already collided, even when the other request has not finished saving and the latest number looks the same
+        var takenNumber = 0;
         for (var attempt = 1;; attempt++)
         {
-            var latestNumber =
-                await bookingRepository.FindLatestCodeNumberByPropertyIdAsync(command.PropertyId, cancellationToken);
+            var latestNumber = Math.Max(takenNumber,
+                await bookingRepository.FindLatestCodeNumberByPropertyIdAsync(command.PropertyId, cancellationToken));
+            var code = Booking.NextCode(command.PropertyId, latestNumber);
             Booking booking;
             try
             {
-                booking = new Booking(command, Booking.NextCode(command.PropertyId, latestNumber), totalAmount.Value);
+                booking = new Booking(command, code, totalAmount.Value);
             }
             catch (ArgumentException)
             {
@@ -77,6 +80,7 @@ public class BookingCommandService(
             catch (DbUpdateException) when (attempt < MaxCodeAttempts)
             {
                 bookingRepository.Remove(booking);
+                takenNumber = Booking.NumberOf(code);
             }
         }
     }
