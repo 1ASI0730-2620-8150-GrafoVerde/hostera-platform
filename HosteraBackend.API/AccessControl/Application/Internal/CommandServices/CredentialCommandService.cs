@@ -59,6 +59,27 @@ public class CredentialCommandService(
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     Only the key cards that still open doors at that moment change; revoked or expired cards keep their history.
+    ///     The changes are saved even when no key card changes, together with the other pending changes of the request,
+    ///     such as the check-out of the booking.
+    /// </remarks>
+    public async Task<Result<IEnumerable<Credential>, CredentialError>> Handle(EndGuestKeyCardsCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (command.BookingId <= 0)
+            return new Result<IEnumerable<Credential>, CredentialError>.Failure(CredentialError.InvalidInput);
+
+        var keyCards = await credentialRepository.FindByBookingIdAsync(command.BookingId, cancellationToken);
+        var endedKeyCards = keyCards.Where(keyCard => keyCard.IsUsableAt(command.EndAt)).ToList();
+        foreach (var keyCard in endedKeyCards)
+            keyCard.EndAt(command.EndAt);
+
+        await unitOfWork.CompleteAsync(cancellationToken);
+        return new Result<IEnumerable<Credential>, CredentialError>.Success(endedKeyCards);
+    }
+
+    /// <inheritdoc />
     public async Task<Result<Credential, CredentialError>> Handle(IssueStaffCredentialCommand command,
         CancellationToken cancellationToken)
     {
