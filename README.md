@@ -22,12 +22,12 @@ The `Shared` context holds the building blocks used by every context: the base r
 | Context | Responsibility |
 | --- | --- |
 | Rooms & Availability | Properties, room types, rooms, operational status periods, room availability, rate plans, and daily rates. |
-| Bookings | Bookings of guest stays, their codes, totals, and room availability rules. |
+| Bookings | Bookings of guest stays, their codes, totals, status changes, payments, and balances. |
 | Inventory Management | Storage locations, inventory items, their stock per location, and stock adjustments. |
 | Access Control | RFID credentials for guests and staff, staff members, and access events. |
 | Overview | The operational dashboard of a property and the comparison of properties. It only reads other contexts. |
 
-Payments, check-in, and check-out are still in development.
+Check-in and check-out are still in development.
 
 ## Endpoints
 
@@ -59,6 +59,9 @@ All routes start with `/api/v1`.
 | Bookings | `POST /properties/{propertyId}/bookings` | Create a pending booking; the server assigns its code and total. |
 | Bookings | `GET /bookings/{bookingId}` | Get a booking. |
 | Bookings | `PUT /bookings/{bookingId}` | Update a pending or confirmed booking. |
+| Bookings | `GET /bookings/{bookingId}/payments` | List the payments of a booking. |
+| Bookings | `POST /bookings/{bookingId}/payments` | Record a payment up to the balance due. Send an `Idempotency-Key` header to make retries safe. |
+| Bookings | `GET /properties/{propertyId}/payments` | List the payments received for the bookings of a property. |
 | Bookings | `POST /bookings/{bookingId}/transitions` | Confirm, cancel, mark as a no-show, or restore a booking. A rejected transition returns the current status and the allowed transitions. |
 | Inventory | `GET`, `POST /properties/{propertyId}/storage-locations` | List and create storage locations. |
 | Inventory | `GET`, `PUT`, `DELETE /storage-locations/{storageLocationId}` | Get, update, and delete a storage location. |
@@ -159,6 +162,7 @@ Errors use the RFC 9457 problem details format. The `title` holds a stable error
 - **400 Bad Request**: a value is missing or not valid.
 - **404 Not Found**: the resource, or the property it belongs to, does not exist.
 - **409 Conflict**: the request breaks a business rule, such as a duplicate name or insufficient stock.
+- **422 Unprocessable Content**: a payment amount is not valid or exceeds the balance due.
 
 ## Project structure
 
