@@ -58,7 +58,12 @@ public static class ModelBuilderExtensions
             dailyRate.Property(d => d.Id).IsRequired().ValueGeneratedOnAdd();
             dailyRate.Property(d => d.PropertyId).IsRequired();
             dailyRate.Property(d => d.RoomTypeId).IsRequired();
-            dailyRate.Property(d => d.Date).HasColumnName("rate_date").IsRequired();
+            // The MySQL provider reads date columns as DateTime, so the value is converted explicitly
+            dailyRate.Property(d => d.Date)
+                .HasConversion(date => date.ToDateTime(TimeOnly.MinValue), value => DateOnly.FromDateTime(value))
+                .HasColumnName("rate_date")
+                .HasColumnType("date")
+                .IsRequired();
             dailyRate.Property(d => d.Amount).IsRequired().HasPrecision(10, 2);
             dailyRate.HasIndex(d => new { d.RatePlanId, d.RoomTypeId, d.Date }).IsUnique();
 
