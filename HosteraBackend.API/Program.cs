@@ -129,6 +129,9 @@ builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<ExternalRoomService>();
 builder.Services.AddScoped<IBookingCommandService, BookingCommandService>();
 builder.Services.AddScoped<IBookingQueryService, BookingQueryService>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<IPaymentCommandService, PaymentCommandService>();
+builder.Services.AddScoped<IPaymentQueryService, PaymentQueryService>();
 
 // Overview Bounded Context
 builder.Services.AddScoped<IOverviewReadRepository, OverviewReadRepository>();
