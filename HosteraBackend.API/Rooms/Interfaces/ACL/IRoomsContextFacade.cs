@@ -57,4 +57,18 @@ public interface IRoomsContextFacade
     /// <returns>True when an operational status prevents booking the room on at least one night.</returns>
     Task<bool> HasBookingBlockingStatusAsync(int roomId, DateOnly firstNight, DateOnly lastNight,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Records that a room needs cleaning on a day, such as the day a guest checks out.
+    /// </summary>
+    /// <remarks>
+    ///     A day that already has an operational status keeps it, so Blocked or Out of service are never replaced.
+    /// </remarks>
+    /// <param name="roomId">The identifier of the room.</param>
+    /// <param name="date">The day the room must be cleaned.</param>
+    /// <param name="reason">Why the room needs cleaning.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>True when a Needs cleaning status was recorded.</returns>
+    Task<bool> MarkRoomForCleaningAsync(int roomId, DateOnly date, string reason,
+        CancellationToken cancellationToken);
 }

@@ -1,4 +1,6 @@
+using HosteraBackend.API.Rooms.Application.CommandServices;
 using HosteraBackend.API.Rooms.Application.QueryServices;
+using HosteraBackend.API.Rooms.Domain.Model.Commands;
 using HosteraBackend.API.Rooms.Domain.Model.Queries;
 using HosteraBackend.API.Rooms.Domain.Model.ValueObjects;
 using HosteraBackend.API.Rooms.Interfaces.ACL;
@@ -12,11 +14,13 @@ namespace HosteraBackend.API.Rooms.Application.ACL;
 /// <param name="roomTypeQueryService">The room type query service</param>
 /// <param name="ratePlanQueryService">The rate plan query service</param>
 /// <param name="statusPeriodQueryService">The status period query service</param>
+/// <param name="statusPeriodCommandService">The status period command service</param>
 public class RoomsContextFacade(
     IRoomQueryService roomQueryService,
     IRoomTypeQueryService roomTypeQueryService,
     IRatePlanQueryService ratePlanQueryService,
-    IStatusPeriodQueryService statusPeriodQueryService)
+    IStatusPeriodQueryService statusPeriodQueryService,
+    IStatusPeriodCommandService statusPeriodCommandService)
     : IRoomsContextFacade
 {
     /// <inheritdoc />
@@ -77,5 +81,23 @@ public class RoomsContextFacade(
         var statusPeriods = await statusPeriodQueryService.Handle(
             new GetAllStatusPeriodsByPropertyIdQuery(room.PropertyId, firstNight, lastNight), cancellationToken);
         return statusPeriods.Any(period => period.RoomId == roomId && period.PreventsBooking);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> MarkRoomForCleaningAsync(int roomId, DateOnly date, string reason,
+        CancellationToken cancellationToken)
+    {
+        var room = await roomQueryService.Handle(new GetRoomByIdQuery(roomId), cancellationToken);
+        if (room is null)
+            return false;
+
+        var statusPeriods = await statusPeriodQueryService.Handle(
+            new GetAllStatusPeriodsByPropertyIdQuery(room.PropertyId, date, date), cancellationToken);
+        if (statusPeriods.Any(period => period.RoomId == roomId))
+            return false;
+
+        var result = await statusPeriodCommandService.Handle(
+            new SetRoomStatusCommand(roomId, EOperationalStatus.NeedsCleaning, date, date, reason), cancellationToken);
+        return result.IsSuccess;
     }
 }
