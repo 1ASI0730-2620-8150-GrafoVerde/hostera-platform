@@ -191,6 +191,46 @@ public partial class Booking
     public int? NoShowBy { get; private set; }
 
     /// <summary>
+    ///     Gets when the stay started, or null.
+    /// </summary>
+    public DateTimeOffset? CheckedInAt { get; private set; }
+
+    /// <summary>
+    ///     Gets the identifier of the operator who completed the check-in, or null.
+    /// </summary>
+    public int? CheckedInBy { get; private set; }
+
+    /// <summary>
+    ///     Gets the type of the identity document verified at check-in, or null.
+    /// </summary>
+    public EDocumentType? GuestDocumentType { get; private set; }
+
+    /// <summary>
+    ///     Gets the number of the identity document verified at check-in, or null.
+    /// </summary>
+    public string? GuestDocumentNumber { get; private set; }
+
+    /// <summary>
+    ///     Gets when the stay ended, or null.
+    /// </summary>
+    public DateTimeOffset? CheckedOutAt { get; private set; }
+
+    /// <summary>
+    ///     Gets the identifier of the operator who completed the check-out, or null.
+    /// </summary>
+    public int? CheckedOutBy { get; private set; }
+
+    /// <summary>
+    ///     Gets the condition in which the guest left the room, or null.
+    /// </summary>
+    public ERoomCondition? RoomCondition { get; private set; }
+
+    /// <summary>
+    ///     Gets the note about the departure, or null.
+    /// </summary>
+    public string? DepartureNote { get; private set; }
+
+    /// <summary>
     ///     Gets the number of nights of the stay.
     /// </summary>
     public int Nights => CheckOutDate.DayNumber - CheckInDate.DayNumber;
@@ -255,6 +295,19 @@ public partial class Booking
     /// <param name="today">The current day of the property.</param>
     /// <returns>True when the booking can be restored, if its room is still available.</returns>
     public bool CanBeRestored(DateOnly today) => Status == EBookingStatus.Cancelled && today <= CheckInDate;
+
+    /// <summary>
+    ///     Indicates whether the stay can start: the booking is Confirmed and today is one of its nights.
+    /// </summary>
+    /// <param name="today">The current day of the property.</param>
+    /// <returns>True when the guest can check in today.</returns>
+    public bool CanBeCheckedIn(DateOnly today) =>
+        Status == EBookingStatus.Confirmed && CheckInDate <= today && today < CheckOutDate;
+
+    /// <summary>
+    ///     Gets whether the stay can end: the booking is Checked in.
+    /// </summary>
+    public bool CanBeCheckedOut => Status == EBookingStatus.CheckedIn;
 
     /// <summary>
     ///     Lists the statuses the booking can move to through a status change.
@@ -424,6 +477,72 @@ public partial class Booking
         CancelledBy = null;
         CancellationReason = null;
         CancellationNote = null;
+    }
+
+    /// <summary>
+    ///     Starts the stay of a confirmed booking once the identity of the guest is verified. A balance due does not
+    ///     prevent it.
+    /// </summary>
+    /// <param name="today">The current day of the property.</param>
+    /// <param name="documentType">The type of the identity document presented by the guest.</param>
+    /// <param name="documentNumber">The number of the identity document.</param>
+    /// <param name="documentVerified">Whether reception checked that the document belongs to the guest present.</param>
+    /// <param name="at">When the stay starts.</param>
+    /// <param name="by">The identifier of the operator who completes the check-in.</param>
+    /// <exception cref="ArgumentException">
+    ///     Thrown when the operator, the document type or the document number is not valid, or the identity is not
+    ///     verified.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    ///     Thrown when the booking is not Confirmed or today is not one of its nights.
+    /// </exception>
+    public void CheckIn(DateOnly today, EDocumentType documentType, string documentNumber, bool documentVerified,
+        DateTimeOffset at, int by)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(by);
+        if (!Enum.IsDefined(documentType))
+            throw new ArgumentException("The document type is not valid.", nameof(documentType));
+        ArgumentException.ThrowIfNullOrWhiteSpace(documentNumber);
+        if (!documentVerified)
+            throw new ArgumentException("The identity of the guest must be verified.", nameof(documentVerified));
+        if (!CanBeCheckedIn(today))
+            throw new InvalidOperationException($"A {Status} booking cannot be checked in on {today}.");
+
+        Status = EBookingStatus.CheckedIn;
+        CheckedInAt = at;
+        CheckedInBy = by;
+        GuestDocumentType = documentType;
+        GuestDocumentNumber = documentNumber.Trim();
+    }
+
+    /// <summary>
+    ///     Ends the stay of a checked-in booking once nothing is owed. Leaving before the check-out day releases the
+    ///     remaining nights without changing the total.
+    /// </summary>
+    /// <param name="balanceDue">What the booking still owes.</param>
+    /// <param name="roomCondition">The condition in which the guest left the room.</param>
+    /// <param name="note">An optional note about the departure.</param>
+    /// <param name="at">When the stay ends.</param>
+    /// <param name="by">The identifier of the operator who completes the check-out.</param>
+    /// <exception cref="ArgumentException">Thrown when the operator or the room condition is not valid.</exception>
+    /// <exception cref="InvalidOperationException">
+    ///     Thrown when the booking is not Checked in or something is still owed.
+    /// </exception>
+    public void CheckOut(decimal balanceDue, ERoomCondition roomCondition, string? note, DateTimeOffset at, int by)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(by);
+        if (!Enum.IsDefined(roomCondition))
+            throw new ArgumentException("The room condition is not valid.", nameof(roomCondition));
+        if (!CanBeCheckedOut)
+            throw new InvalidOperationException($"A {Status} booking cannot be checked out.");
+        if (balanceDue > 0)
+            throw new InvalidOperationException("A booking with a balance due cannot be checked out.");
+
+        Status = EBookingStatus.CheckedOut;
+        CheckedOutAt = at;
+        CheckedOutBy = by;
+        RoomCondition = roomCondition;
+        DepartureNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
     }
 
     [GeneratedRegex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$")]
