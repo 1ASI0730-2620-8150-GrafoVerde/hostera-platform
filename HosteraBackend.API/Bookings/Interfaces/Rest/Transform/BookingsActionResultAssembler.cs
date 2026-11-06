@@ -23,6 +23,10 @@ public static class BookingsActionResultAssembler
         BookingError.RoomUnavailable => StatusCodes.Status409Conflict,
         BookingError.NotEditable => StatusCodes.Status409Conflict,
         BookingError.InvalidStatusChange => StatusCodes.Status409Conflict,
+        BookingError.PaymentsNotAccepted => StatusCodes.Status409Conflict,
+        BookingError.InvalidPaymentAmount => StatusCodes.Status422UnprocessableEntity,
+        BookingError.PaymentExceedsBalance => StatusCodes.Status422UnprocessableEntity,
+        BookingError.IdempotencyKeyReused => StatusCodes.Status409Conflict,
         _ => StatusCodes.Status400BadRequest
     };
 
@@ -46,6 +50,12 @@ public static class BookingsActionResultAssembler
         BookingError.InvalidStatusChange => "The booking cannot move from its current status to the requested one today.",
         BookingError.CancellationReasonRequired => "A cancellation needs a reason.",
         BookingError.CancellationNoteRequired => "The other cancellation reason needs a note.",
+        BookingError.PaymentsNotAccepted => "Only pending, confirmed or checked-in bookings accept payments.",
+        BookingError.InvalidPaymentAmount => "The payment amount must be positive and have at most two decimals.",
+        BookingError.PaymentExceedsBalance => "The payment amount exceeds the balance due of the booking.",
+        BookingError.InvalidPaymentDate => "A payment cannot be received in the future.",
+        BookingError.IdempotencyKeyReused =>
+            "The idempotency key was already used for a different payment of the booking.",
         _ => "An unexpected error occurred."
     };
 
