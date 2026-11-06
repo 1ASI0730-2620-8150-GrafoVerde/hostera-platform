@@ -22,4 +22,11 @@ public class PropertyClock(TimeProvider timeProvider, IConfiguration configurati
 
     /// <inheritdoc />
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(Now, _timeZone).DateTime);
+
+    /// <inheritdoc />
+    public DateTimeOffset AtLocalTime(DateOnly date, TimeOnly time)
+    {
+        var localTime = date.ToDateTime(time, DateTimeKind.Unspecified);
+        return new DateTimeOffset(localTime, _timeZone.GetUtcOffset(localTime));
+    }
 }
