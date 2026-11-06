@@ -42,6 +42,10 @@ public static class ModelBuilderExtensions
             booking.Property(b => b.GuestRequest).HasMaxLength(500);
             booking.Property(b => b.CancellationReason).HasConversion<string>().HasMaxLength(30);
             booking.Property(b => b.CancellationNote).HasMaxLength(500);
+            booking.Property(b => b.GuestDocumentType).HasConversion<string>().HasMaxLength(30);
+            booking.Property(b => b.GuestDocumentNumber).HasMaxLength(30);
+            booking.Property(b => b.RoomCondition).HasConversion<string>().HasMaxLength(20);
+            booking.Property(b => b.DepartureNote).HasMaxLength(500);
             booking.Ignore(b => b.Nights);
             booking.Ignore(b => b.LastNight);
             booking.Ignore(b => b.HoldsRoom);
@@ -49,6 +53,7 @@ public static class ModelBuilderExtensions
             booking.Ignore(b => b.CanBeConfirmed);
             booking.Ignore(b => b.CanBeCancelled);
             booking.Ignore(b => b.AcceptsPayments);
+            booking.Ignore(b => b.CanBeCheckedOut);
 
             // Each property numbers its own bookings, so a code is unique within its property
             booking.HasIndex(b => new { b.PropertyId, b.Code }).IsUnique();
