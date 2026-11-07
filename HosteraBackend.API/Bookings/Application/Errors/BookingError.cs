@@ -108,5 +108,25 @@ public enum BookingError
 	/// <summary>
 	/// The idempotency key was already used for a different payment of the booking.
 	/// </summary>
-	IdempotencyKeyReused
+	IdempotencyKeyReused,
+
+	/// <summary>
+	/// The check-in needs a verified identity document with its type and number.
+	/// </summary>
+	IdentityNotVerified,
+
+	/// <summary>
+	/// The check-in needs at least one key card encoded for the guest.
+	/// </summary>
+	KeyCardRequired,
+
+	/// <summary>
+	/// Access Control did not issue the key cards, for example because a card is already in use.
+	/// </summary>
+	KeyCardsNotIssued,
+
+	/// <summary>
+	/// The booking still owes part of its total, so it cannot be checked out.
+	/// </summary>
+	BalanceDue
 }
