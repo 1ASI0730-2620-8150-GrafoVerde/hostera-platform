@@ -1,9 +1,10 @@
-@startuml Hostera Platform Class Diagram - Rooms, Bookings and Shared Bounded Contexts
+@startuml Hostera Platform Class Diagram - Rooms, Bookings, Access Control facade and Shared Bounded Contexts
 
     title
         Hostera Platform
         Class Diagram
         Rooms, Bookings and Shared Bounded Contexts
+        with the Access Control facade used by Bookings
     end title
 
     package "Shared Bounded Context" as Shared {
@@ -32,6 +33,7 @@
             interface IClock {
                 +Now: DateTimeOffset
                 +Today: DateOnly
+                +AtLocalTime(DateOnly date, TimeOnly time): DateTimeOffset
             }
         }
 
@@ -370,7 +372,7 @@
             }
 
             class RoomsContextFacade implements IRoomsContextFacade {
-                +RoomsContextFacade(IRoomQueryService roomQueryService, IRoomTypeQueryService roomTypeQueryService, IRatePlanQueryService ratePlanQueryService, IStatusPeriodQueryService statusPeriodQueryService)
+                +RoomsContextFacade(IRoomQueryService roomQueryService, IRoomTypeQueryService roomTypeQueryService, IRatePlanQueryService ratePlanQueryService, IStatusPeriodQueryService statusPeriodQueryService, IStatusPeriodCommandService statusPeriodCommandService)
             }
         }
 
@@ -390,6 +392,7 @@
                 +FetchRatePlanAsync(int ratePlanId, CancellationToken cancellationToken): Task<RatePlanSummary?>
                 +QuoteStayAsync(int roomTypeId, int ratePlanId, DateOnly checkInDate, DateOnly checkOutDate, CancellationToken cancellationToken): Task<decimal?>
                 +HasBookingBlockingStatusAsync(int roomId, DateOnly firstNight, DateOnly lastNight, CancellationToken cancellationToken): Task<bool>
+                +MarkRoomForCleaningAsync(int roomId, DateOnly date, string reason, CancellationToken cancellationToken): Task<bool>
             }
 
             class RoomSummary <<record>> {
@@ -544,6 +547,7 @@
         RoomsContextFacade ..> IRoomTypeQueryService
         RoomsContextFacade ..> IRatePlanQueryService
         RoomsContextFacade ..> IStatusPeriodQueryService
+        RoomsContextFacade ..> IStatusPeriodCommandService
     }
 
     package "Bookings Bounded Context" as Bookings {
@@ -577,6 +581,14 @@
                 +CancellationNote: string?
                 +NoShowAt: DateTimeOffset?
                 +NoShowBy: int?
+                +CheckedInAt: DateTimeOffset?
+                +CheckedInBy: int?
+                +GuestDocumentType: EDocumentType?
+                +GuestDocumentNumber: string?
+                +CheckedOutAt: DateTimeOffset?
+                +CheckedOutBy: int?
+                +RoomCondition: ERoomCondition?
+                +DepartureNote: string?
                 +Nights: int
                 +LastNight: DateOnly
                 +HoldsRoom: bool
@@ -588,6 +600,8 @@
                 +CanBeCancelled: bool
                 +CanBeMarkedNoShow(DateOnly today): bool
                 +CanBeRestored(DateOnly today): bool
+                +CanBeCheckedIn(DateOnly today): bool
+                +CanBeCheckedOut: bool
                 +AllowedTransitions(DateOnly today): IReadOnlyList<EBookingStatus>
                 +{static} NextCode(int propertyId, int latestNumber): string
                 +{static} NumberOf(string? code): int
@@ -598,6 +612,35 @@
                 +Cancel(ECancellationReason reason, string? note, DateTimeOffset at, int by): void
                 +MarkNoShow(DateOnly today, DateTimeOffset at, int by): void
                 +Restore(DateOnly today): void
+                +CheckIn(DateOnly today, EDocumentType documentType, string documentNumber, bool documentVerified, DateTimeOffset at, int by): void
+                +CheckOut(decimal balanceDue, ERoomCondition roomCondition, string? note, DateTimeOffset at, int by): void
+            }
+
+            enum EDocumentType <<ValueObject>> {
+                Dni
+                Passport
+                ForeignResidentCard
+            }
+
+            enum ERoomCondition <<ValueObject>> {
+                NoIssues
+                NeedsAttention
+            }
+
+            class CheckInBookingCommand <<record>> {
+                +BookingId: int
+                +DocumentType: EDocumentType
+                +DocumentNumber: string
+                +DocumentVerified: bool
+                +KeyCardIds: IReadOnlyList<string>
+                +OperatorId: int
+            }
+
+            class CheckOutBookingCommand <<record>> {
+                +BookingId: int
+                +RoomCondition: ERoomCondition
+                +DepartureNote: string?
+                +OperatorId: int
             }
 
             class Payment <<Aggregate>> implements IAuditableEntity {
@@ -769,6 +812,37 @@
                 PaymentExceedsBalance
                 InvalidPaymentDate
                 IdempotencyKeyReused
+                IdentityNotVerified
+                KeyCardRequired
+                KeyCardsNotIssued
+                BalanceDue
+            }
+
+            class CheckedInStay <<record>> {
+                +Booking: Booking
+                +KeyCardIds: IReadOnlyList<int>
+            }
+
+            class CheckedOutStay <<record>> {
+                +Booking: Booking
+                +EndedKeyCards: int
+                +RoomMarkedForCleaning: bool
+            }
+
+            interface IStayCommandService {
+                +Handle(CheckInBookingCommand command, CancellationToken cancellationToken): Task<Result<CheckedInStay, BookingError>>
+                +Handle(CheckOutBookingCommand command, CancellationToken cancellationToken): Task<Result<CheckedOutStay, BookingError>>
+            }
+
+            class StayCommandService implements IStayCommandService {
+                +CheckOutTime: TimeOnly = 11:00
+                +StayCommandService(IBookingRepository bookingRepository, IPaymentRepository paymentRepository, ExternalGuestKeyCardService externalGuestKeyCardService, ExternalRoomService externalRoomService, IClock clock)
+            }
+
+            class ExternalGuestKeyCardService <<ACL>> {
+                +ExternalGuestKeyCardService(IAccessControlContextFacade accessControlContextFacade)
+                +IssueGuestKeyCardsAsync(Booking booking, DateTimeOffset validFrom, DateTimeOffset validUntil, IReadOnlyList<string> cardIds, int issuedBy, CancellationToken cancellationToken): Task<(IReadOnlyList<int>, string?)>
+                +EndGuestKeyCardsAsync(int bookingId, DateTimeOffset endAt, CancellationToken cancellationToken): Task<int>
             }
 
             class RecordedPayment <<record>> {
@@ -827,6 +901,7 @@
                 +FetchRatePlanAsync(int ratePlanId, CancellationToken cancellationToken): Task<BookableRatePlan?>
                 +QuoteStayAsync(int roomTypeId, int ratePlanId, DateOnly checkInDate, DateOnly checkOutDate, CancellationToken cancellationToken): Task<decimal?>
                 +IsRoomOutOfOrderAsync(int roomId, DateOnly checkInDate, DateOnly checkOutDate, CancellationToken cancellationToken): Task<bool>
+                +MarkRoomForCleaningAsync(int roomId, DateOnly date, string bookingCode, CancellationToken cancellationToken): Task<bool>
             }
         }
 
@@ -853,6 +928,11 @@
                 +RecordPayment(int bookingId, RecordPaymentResource resource, string? idempotencyKey, CancellationToken cancellationToken): Task<IActionResult>
             }
 
+            class BookingStaysController {
+                +CheckInBooking(int bookingId, CheckInBookingResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +CheckOutBooking(int bookingId, CheckOutBookingResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
             class PropertyPaymentsController {
                 +GetPaymentsByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
             }
@@ -865,6 +945,16 @@
             }
         }
 
+        Booking ..> EDocumentType
+        Booking ..> ERoomCondition
+        StayCommandService ..> IBookingRepository
+        StayCommandService ..> IPaymentRepository
+        StayCommandService ..> ExternalGuestKeyCardService
+        StayCommandService ..> ExternalRoomService
+        StayCommandService ..> IClock
+        ExternalGuestKeyCardService ..> IAccessControlContextFacade
+        BookingStaysController ..> IStayCommandService
+        BookingStaysController ..> IPaymentQueryService
         Booking "1" -- "0..*" Payment : is paid by >
         Payment ..> EPaymentMethod
         Booking ..> EPaymentStatus
@@ -895,6 +985,36 @@
         BookingsController ..> IBookingQueryService
         PropertyBookingsController ..> BookingsActionResultAssembler
         BookingsController ..> BookingsActionResultAssembler
+    }
+
+    package "Access Control Bounded Context" as AccessControl {
+        package "Interfaces.ACL" as AccessControlAcl {
+            interface IAccessControlContextFacade {
+                +IssueGuestKeyCardsAsync(int propertyId, int bookingId, string bookingCode, int roomId, string holderName, DateTimeOffset validFrom, DateTimeOffset validUntil, IReadOnlyList<string> cardIds, int issuedBy, CancellationToken cancellationToken): Task<GuestKeyCardsIssue>
+                +EndGuestKeyCardsAsync(int bookingId, DateTimeOffset endAt, CancellationToken cancellationToken): Task<int>
+            }
+
+            class GuestKeyCardsIssue <<record>> {
+                +CredentialIds: IReadOnlyList<int>
+                +ErrorCode: string?
+                +Succeeded: bool
+            }
+        }
+
+        package "Application.ACL" as AccessControlApplicationAcl {
+            class AccessControlContextFacade implements IAccessControlContextFacade {
+                +AccessControlContextFacade(ICredentialCommandService credentialCommandService)
+            }
+        }
+
+        package "Domain.Model.Commands" as AccessControlCommands {
+            class EndGuestKeyCardsCommand <<record>> {
+                +BookingId: int
+                +EndAt: DateTimeOffset
+            }
+        }
+
+        AccessControlContextFacade ..> EndGuestKeyCardsCommand
     }
 
 @enduml
