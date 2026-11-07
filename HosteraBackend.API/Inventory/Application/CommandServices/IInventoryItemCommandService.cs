@@ -36,4 +36,13 @@ public interface IInventoryItemCommandService
     /// <returns>The adjusted <see cref="InventoryItem" />, or the <see cref="InventoryError" /> that prevented it.</returns>
     Task<Result<InventoryItem, InventoryError>> Handle(AdjustStockCommand command,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Handles the unassign storage location command.
+    /// </summary>
+    /// <param name="command">The <see cref="UnassignStorageLocationCommand" /> command to handle.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The updated <see cref="InventoryItem" />, or the <see cref="InventoryError" /> that prevented it.</returns>
+    Task<Result<InventoryItem, InventoryError>> Handle(UnassignStorageLocationCommand command,
+        CancellationToken cancellationToken);
 }
