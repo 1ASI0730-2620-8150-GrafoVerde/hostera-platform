@@ -10,6 +10,12 @@ using HosteraBackend.API.Inventory.Application.Internal.QueryServices;
 using HosteraBackend.API.Inventory.Application.QueryServices;
 using HosteraBackend.API.Inventory.Domain.Repositories;
 using HosteraBackend.API.Inventory.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Rooms.Application.CommandServices;
+using HosteraBackend.API.Rooms.Application.Internal.CommandServices;
+using HosteraBackend.API.Rooms.Application.Internal.QueryServices;
+using HosteraBackend.API.Rooms.Application.QueryServices;
+using HosteraBackend.API.Rooms.Domain.Repositories;
+using HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Shared.Domain.Repositories;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
@@ -78,6 +84,12 @@ builder.Services.AddScoped<IStaffMemberRepository, StaffMemberRepository>();
 builder.Services.AddScoped<ICredentialCommandService, CredentialCommandService>();
 builder.Services.AddScoped<ICredentialQueryService, CredentialQueryService>();
 builder.Services.AddScoped<IStaffMemberQueryService, StaffMemberQueryService>();
+
+// Rooms Bounded Context
+builder.Services.AddScoped<IRatePlanRepository, RatePlanRepository>();
+builder.Services.AddScoped<IDailyRateRepository, DailyRateRepository>();
+builder.Services.AddScoped<IRatePlanCommandService, RatePlanCommandService>();
+builder.Services.AddScoped<IRatePlanQueryService, RatePlanQueryService>();
 
 var app = builder.Build();
 
