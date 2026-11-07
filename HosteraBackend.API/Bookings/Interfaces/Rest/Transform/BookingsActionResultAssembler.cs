@@ -27,6 +27,8 @@ public static class BookingsActionResultAssembler
         BookingError.InvalidPaymentAmount => StatusCodes.Status422UnprocessableEntity,
         BookingError.PaymentExceedsBalance => StatusCodes.Status422UnprocessableEntity,
         BookingError.IdempotencyKeyReused => StatusCodes.Status409Conflict,
+        BookingError.KeyCardsNotIssued => StatusCodes.Status409Conflict,
+        BookingError.BalanceDue => StatusCodes.Status409Conflict,
         _ => StatusCodes.Status400BadRequest
     };
 
@@ -56,6 +58,12 @@ public static class BookingsActionResultAssembler
         BookingError.InvalidPaymentDate => "A payment cannot be received in the future.",
         BookingError.IdempotencyKeyReused =>
             "The idempotency key was already used for a different payment of the booking.",
+        BookingError.IdentityNotVerified =>
+            "The check-in needs a verified identity document with its type and number.",
+        BookingError.KeyCardRequired => "The check-in needs at least one key card encoded for the guest.",
+        BookingError.KeyCardsNotIssued =>
+            "The key cards were not issued: a card is not valid or is already in use by another credential.",
+        BookingError.BalanceDue => "The booking still owes part of its total, so it cannot be checked out.",
         _ => "An unexpected error occurred."
     };
 
