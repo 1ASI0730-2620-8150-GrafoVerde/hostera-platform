@@ -6,6 +6,7 @@ using HosteraBackend.API.AccessControl.Application.QueryServices;
 using HosteraBackend.API.AccessControl.Domain.Repositories;
 using HosteraBackend.API.AccessControl.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.AccessControl.Interfaces.ACL;
+using HosteraBackend.API.Bookings.Application.ACL;
 using HosteraBackend.API.Bookings.Application.CommandServices;
 using HosteraBackend.API.Bookings.Application.Internal.CommandServices;
 using HosteraBackend.API.Bookings.Application.Internal.OutboundServices.ACL;
@@ -13,6 +14,7 @@ using HosteraBackend.API.Bookings.Application.Internal.QueryServices;
 using HosteraBackend.API.Bookings.Application.QueryServices;
 using HosteraBackend.API.Bookings.Domain.Repositories;
 using HosteraBackend.API.Bookings.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Bookings.Interfaces.ACL;
 using HosteraBackend.API.Inventory.Application.CommandServices;
 using HosteraBackend.API.Inventory.Application.Internal.CommandServices;
 using HosteraBackend.API.Inventory.Application.Internal.QueryServices;
@@ -137,6 +139,7 @@ builder.Services.AddScoped<IPaymentCommandService, PaymentCommandService>();
 builder.Services.AddScoped<IPaymentQueryService, PaymentQueryService>();
 builder.Services.AddScoped<ExternalGuestKeyCardService>();
 builder.Services.AddScoped<IStayCommandService, StayCommandService>();
+builder.Services.AddScoped<IBookingsContextFacade, BookingsContextFacade>();
 
 // Overview Bounded Context
 builder.Services.AddScoped<IOverviewReadRepository, OverviewReadRepository>();
