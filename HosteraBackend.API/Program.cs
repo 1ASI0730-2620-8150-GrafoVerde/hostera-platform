@@ -135,6 +135,8 @@ builder.Services.AddScoped<IBookingQueryService, BookingQueryService>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentCommandService, PaymentCommandService>();
 builder.Services.AddScoped<IPaymentQueryService, PaymentQueryService>();
+builder.Services.AddScoped<ExternalGuestKeyCardService>();
+builder.Services.AddScoped<IStayCommandService, StayCommandService>();
 
 // Overview Bounded Context
 builder.Services.AddScoped<IOverviewReadRepository, OverviewReadRepository>();
