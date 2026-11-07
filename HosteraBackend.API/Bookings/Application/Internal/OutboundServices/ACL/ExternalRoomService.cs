@@ -75,4 +75,16 @@ public class ExternalRoomService(IRoomsContextFacade roomsContextFacade)
         CancellationToken cancellationToken) =>
         roomsContextFacade.HasBookingBlockingStatusAsync(roomId, checkInDate, checkOutDate.AddDays(-1),
             cancellationToken);
+
+    /// <summary>
+    ///     Records that a room needs cleaning on the day a guest leaves it.
+    /// </summary>
+    /// <param name="roomId">The identifier of the room.</param>
+    /// <param name="date">The day the guest left.</param>
+    /// <param name="bookingCode">The code of the booking whose guest left, used as the reason.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>True when the room was marked; false when the day already had an operational status.</returns>
+    public Task<bool> MarkRoomForCleaningAsync(int roomId, DateOnly date, string bookingCode,
+        CancellationToken cancellationToken) =>
+        roomsContextFacade.MarkRoomForCleaningAsync(roomId, date, $"Check-out of {bookingCode}", cancellationToken);
 }
