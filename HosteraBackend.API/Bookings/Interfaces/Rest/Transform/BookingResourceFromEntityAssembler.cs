@@ -46,6 +46,14 @@ public static class BookingResourceFromEntityAssembler
             entity.CancellationReason is { } reason ? BookingsEnumNames.ToName(reason) : null,
             entity.CancellationNote,
             entity.NoShowAt,
-            entity.NoShowBy);
+            entity.NoShowBy,
+            entity.CheckedInAt,
+            entity.CheckedInBy,
+            entity.GuestDocumentType is { } documentType ? BookingsEnumNames.ToName(documentType) : null,
+            entity.GuestDocumentNumber,
+            entity.CheckedOutAt,
+            entity.CheckedOutBy,
+            entity.RoomCondition is { } roomCondition ? BookingsEnumNames.ToName(roomCondition) : null,
+            entity.DepartureNote);
     }
 }

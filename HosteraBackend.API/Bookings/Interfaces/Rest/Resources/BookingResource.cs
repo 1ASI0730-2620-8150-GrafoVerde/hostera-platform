@@ -33,6 +33,14 @@ namespace HosteraBackend.API.Bookings.Interfaces.Rest.Resources;
 /// <param name="CancellationNote">The internal note about the cancellation, or null</param>
 /// <param name="NoShowAt">When the booking was marked as a no-show, or null</param>
 /// <param name="NoShowBy">The operator who marked the booking as a no-show, or null</param>
+/// <param name="CheckedInAt">When the stay started, or null</param>
+/// <param name="CheckedInBy">The operator who completed the check-in, or null</param>
+/// <param name="GuestDocumentType">The identity document verified at check-in: dni, passport or foreign-resident-card</param>
+/// <param name="GuestDocumentNumber">The number of the identity document, or null</param>
+/// <param name="CheckedOutAt">When the stay ended, or null</param>
+/// <param name="CheckedOutBy">The operator who completed the check-out, or null</param>
+/// <param name="RoomCondition">The condition of the room at check-out: no-issues or needs-attention</param>
+/// <param name="DepartureNote">The note about the departure, or null</param>
 public record BookingResource(
     int Id,
     int PropertyId,
@@ -61,4 +69,12 @@ public record BookingResource(
     string? CancellationReason,
     string? CancellationNote,
     DateTimeOffset? NoShowAt,
-    int? NoShowBy);
+    int? NoShowBy,
+    DateTimeOffset? CheckedInAt,
+    int? CheckedInBy,
+    string? GuestDocumentType,
+    string? GuestDocumentNumber,
+    DateTimeOffset? CheckedOutAt,
+    int? CheckedOutBy,
+    string? RoomCondition,
+    string? DepartureNote);
