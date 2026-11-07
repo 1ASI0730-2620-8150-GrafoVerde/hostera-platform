@@ -131,6 +131,30 @@ public class InventoryItemCommandService(
         return new Result<InventoryItem, InventoryError>.Success(inventoryItem);
     }
 
+    /// <inheritdoc />
+    public async Task<Result<InventoryItem, InventoryError>> Handle(UnassignStorageLocationCommand command,
+        CancellationToken cancellationToken)
+    {
+        var inventoryItem = await inventoryItemRepository.FindByIdAsync(command.InventoryItemId, cancellationToken);
+        if (inventoryItem is null)
+            return Failure(InventoryError.InventoryItemNotFound);
+
+        if (!inventoryItem.IsAssignedTo(command.StorageLocationId))
+            return Failure(InventoryError.StorageLocationNotAssigned);
+
+        try
+        {
+            inventoryItem.UnassignStorageLocation(command);
+        }
+        catch (InvalidOperationException)
+        {
+            return Failure(InventoryError.StorageLocationAssignmentInUse);
+        }
+
+        await unitOfWork.CompleteAsync(cancellationToken);
+        return new Result<InventoryItem, InventoryError>.Success(inventoryItem);
+    }
+
     private async Task<InventoryError?> ValidateLocationAsync(int storageLocationId, int propertyId,
         CancellationToken cancellationToken)
     {
