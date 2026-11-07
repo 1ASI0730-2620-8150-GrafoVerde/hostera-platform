@@ -22,12 +22,10 @@ The `Shared` context holds the building blocks used by every context: the base r
 | Context | Responsibility |
 | --- | --- |
 | Rooms & Availability | Properties, room types, rooms, operational status periods, room availability, rate plans, and daily rates. |
-| Bookings | Bookings of guest stays, their codes, totals, status changes, payments, and balances. |
+| Bookings | Bookings of guest stays, their codes, totals, status changes, payments, balances, check-in, and check-out. |
 | Inventory Management | Storage locations, inventory items, their stock per location, and stock adjustments. |
 | Access Control | RFID credentials for guests and staff, staff members, and access events. |
 | Overview | The operational dashboard of a property and the comparison of properties. It only reads other contexts. |
-
-Check-in and check-out are still in development.
 
 ## Endpoints
 
@@ -59,6 +57,8 @@ All routes start with `/api/v1`.
 | Bookings | `POST /properties/{propertyId}/bookings` | Create a pending booking; the server assigns its code and total. |
 | Bookings | `GET /bookings/{bookingId}` | Get a booking. |
 | Bookings | `PUT /bookings/{bookingId}` | Update a pending or confirmed booking. |
+| Bookings | `POST /bookings/{bookingId}/check-in` | Check in a confirmed booking with a verified identity document and register its key cards in Access Control, valid until 11:00 on the check-out day. |
+| Bookings | `POST /bookings/{bookingId}/check-out` | Check out a paid booking, end its key cards, and mark the room as needs-cleaning on the departure day. |
 | Bookings | `GET /bookings/{bookingId}/payments` | List the payments of a booking. |
 | Bookings | `POST /bookings/{bookingId}/payments` | Record a payment up to the balance due. Send an `Idempotency-Key` header to make retries safe. |
 | Bookings | `GET /properties/{propertyId}/payments` | List the payments received for the bookings of a property. |
