@@ -48,4 +48,13 @@ public interface IBookingRepository : IBaseRepository<Booking>
     /// <returns>A task containing true when another booking holds the room on a night of the stay.</returns>
     Task<bool> ExistsRoomHoldAsync(int roomId, DateOnly checkInDate, DateOnly checkOutDate, int? excludedBookingId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Find the Pending, Confirmed and Checked in bookings that hold a room of a property on a night of a range
+    /// </summary>
+    /// <param name="query">The query with the property, the range of nights and the optional room.</param>
+    /// <param name="cancellationToken">Token to cancel the asynchronous operation.</param>
+    /// <returns>An Enumerable containing the bookings ordered by room and check-in day, or empty otherwise.</returns>
+    Task<IEnumerable<Booking>> FindRoomHoldsAsync(GetRoomHoldsByPropertyIdQuery query,
+        CancellationToken cancellationToken = default);
 }

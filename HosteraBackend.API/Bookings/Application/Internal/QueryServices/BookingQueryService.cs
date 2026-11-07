@@ -26,4 +26,11 @@ public class BookingQueryService(IBookingRepository bookingRepository) : IBookin
     {
         return await bookingRepository.FindByIdAsync(query.BookingId, cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<IEnumerable<Booking>> Handle(GetRoomHoldsByPropertyIdQuery query,
+        CancellationToken cancellationToken)
+    {
+        return await bookingRepository.FindRoomHoldsAsync(query, cancellationToken);
+    }
 }

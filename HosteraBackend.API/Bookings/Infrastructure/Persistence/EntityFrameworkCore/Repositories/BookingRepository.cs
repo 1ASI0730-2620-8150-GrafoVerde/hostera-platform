@@ -65,6 +65,25 @@ public class BookingRepository(AppDbContext context)
                                  && checkInDate < booking.CheckOutDate, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<IEnumerable<Booking>> FindRoomHoldsAsync(GetRoomHoldsByPropertyIdQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        // A booking holds the nights from its check-in day up to the day before its check-out day
+        var bookings = Context.Set<Booking>()
+            .Where(booking => booking.PropertyId == query.PropertyId
+                              && RoomHoldingStatuses.Contains(booking.Status)
+                              && booking.CheckInDate <= query.To
+                              && booking.CheckOutDate > query.From);
+        if (query.RoomId is { } roomId)
+            bookings = bookings.Where(booking => booking.RoomId == roomId);
+
+        return await bookings
+            .OrderBy(booking => booking.RoomId)
+            .ThenBy(booking => booking.CheckInDate)
+            .ToListAsync(cancellationToken);
+    }
+
     private IQueryable<Booking> Filter(GetAllBookingsByPropertyIdQuery query)
     {
         var bookings = Context.Set<Booking>().Where(booking => booking.PropertyId == query.PropertyId);
