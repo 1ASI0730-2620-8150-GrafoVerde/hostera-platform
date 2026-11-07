@@ -90,6 +90,8 @@ builder.Services.AddScoped<IRatePlanRepository, RatePlanRepository>();
 builder.Services.AddScoped<IDailyRateRepository, DailyRateRepository>();
 builder.Services.AddScoped<IRatePlanCommandService, RatePlanCommandService>();
 builder.Services.AddScoped<IRatePlanQueryService, RatePlanQueryService>();
+builder.Services.AddScoped<IPropertyRepository, PropertyRepository>();
+builder.Services.AddScoped<IPropertyQueryService, PropertyQueryService>();
 
 var app = builder.Build();
 
