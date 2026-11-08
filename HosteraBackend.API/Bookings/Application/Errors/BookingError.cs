@@ -128,5 +128,10 @@ public enum BookingError
 	/// <summary>
 	/// The booking still owes part of its total, so it cannot be checked out.
 	/// </summary>
-	BalanceDue
+	BalanceDue,
+
+	/// <summary>
+	/// The booking changed after the client read it, so the change was not applied.
+	/// </summary>
+	ConcurrencyConflict
 }
