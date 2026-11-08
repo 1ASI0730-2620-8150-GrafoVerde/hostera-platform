@@ -29,6 +29,7 @@ using HosteraBackend.API.Overview.Infrastructure.Persistence.EntityFrameworkCore
 using HosteraBackend.API.Rooms.Application.ACL;
 using HosteraBackend.API.Rooms.Application.CommandServices;
 using HosteraBackend.API.Rooms.Application.Internal.CommandServices;
+using HosteraBackend.API.Rooms.Application.Internal.OutboundServices.ACL;
 using HosteraBackend.API.Rooms.Application.Internal.QueryServices;
 using HosteraBackend.API.Rooms.Application.QueryServices;
 using HosteraBackend.API.Rooms.Domain.Repositories;
@@ -128,6 +129,7 @@ builder.Services.AddScoped<IStatusPeriodRepository, StatusPeriodRepository>();
 builder.Services.AddScoped<IStatusPeriodCommandService, StatusPeriodCommandService>();
 builder.Services.AddScoped<IStatusPeriodQueryService, StatusPeriodQueryService>();
 builder.Services.AddScoped<IRoomsContextFacade, RoomsContextFacade>();
+builder.Services.AddScoped<ExternalBookingService>();
 
 // Bookings Bounded Context
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
