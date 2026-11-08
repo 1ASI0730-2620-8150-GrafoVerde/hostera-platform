@@ -20,6 +20,8 @@ public static class ModelBuilderExtensions
             booking.Property(b => b.Id).IsRequired().ValueGeneratedOnAdd();
             booking.Property(b => b.PropertyId).IsRequired();
             booking.Property(b => b.Code).IsRequired().HasMaxLength(20);
+            // A save that finds another version than the one it read fails, so concurrent changes are not lost
+            booking.Property(b => b.Version).IsRequired().IsConcurrencyToken();
             booking.Property(b => b.Status).HasConversion<string>().IsRequired().HasMaxLength(20);
             booking.Property(b => b.GuestName).IsRequired().HasMaxLength(120);
             booking.Property(b => b.GuestEmail).IsRequired().HasMaxLength(120);
