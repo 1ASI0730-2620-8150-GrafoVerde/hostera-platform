@@ -92,6 +92,8 @@ public class BookingCommandService(
         var booking = await bookingRepository.FindByIdAsync(command.BookingId, cancellationToken);
         if (booking is null)
             return Failure(BookingError.BookingNotFound);
+        if (command.ExpectedVersion is { } expectedVersion && expectedVersion != booking.Version)
+            return Failure(BookingError.ConcurrencyConflict);
 
         if (!booking.IsEditable)
             return Failure(BookingError.NotEditable);
@@ -125,8 +127,7 @@ public class BookingCommandService(
             return Failure(BookingError.InvalidInput);
         }
 
-        await unitOfWork.CompleteAsync(cancellationToken);
-        return new Result<Booking, BookingError>.Success(booking);
+        return await SaveAsync(booking, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -136,6 +137,8 @@ public class BookingCommandService(
         var booking = await bookingRepository.FindByIdAsync(command.BookingId, cancellationToken);
         if (booking is null)
             return Failure(BookingError.BookingNotFound);
+        if (command.ExpectedVersion is { } expectedVersion && expectedVersion != booking.Version)
+            return Failure(BookingError.ConcurrencyConflict);
 
         if (command.OperatorId <= 0)
             return Failure(BookingError.InvalidInput);
@@ -172,8 +175,23 @@ public class BookingCommandService(
                 return Failure(BookingError.InvalidStatusChange);
         }
 
-        await unitOfWork.CompleteAsync(cancellationToken);
-        return new Result<Booking, BookingError>.Success(booking);
+        return await SaveAsync(booking, cancellationToken);
+    }
+
+    /// <summary>
+    ///     Saves a changed booking, or reports a conflict when another request changed it first.
+    /// </summary>
+    private async Task<Result<Booking, BookingError>> SaveAsync(Booking booking, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await unitOfWork.CompleteAsync(cancellationToken);
+            return new Result<Booking, BookingError>.Success(booking);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Failure(BookingError.ConcurrencyConflict);
+        }
     }
 
     private static bool AreValidStayDates(DateOnly checkInDate, DateOnly checkOutDate)

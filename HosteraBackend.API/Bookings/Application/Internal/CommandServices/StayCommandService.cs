@@ -5,6 +5,7 @@ using HosteraBackend.API.Bookings.Domain.Model.Commands;
 using HosteraBackend.API.Bookings.Domain.Repositories;
 using HosteraBackend.API.Shared.Application.Internal.OutboundServices;
 using HosteraBackend.API.Shared.Application.Patterns;
+using Microsoft.EntityFrameworkCore;
 
 namespace HosteraBackend.API.Bookings.Application.Internal.CommandServices;
 
@@ -51,6 +52,8 @@ public class StayCommandService(
         var booking = await bookingRepository.FindByIdAsync(command.BookingId, cancellationToken);
         if (booking is null)
             return new Result<CheckedInStay, BookingError>.Failure(BookingError.BookingNotFound);
+        if (command.ExpectedVersion is { } expectedVersion && expectedVersion != booking.Version)
+            return new Result<CheckedInStay, BookingError>.Failure(BookingError.ConcurrencyConflict);
         if (command.OperatorId <= 0)
             return new Result<CheckedInStay, BookingError>.Failure(BookingError.InvalidInput);
 
@@ -74,9 +77,18 @@ public class StayCommandService(
         }
 
         // Access Control saves the key cards together with the check-in, or nothing when it rejects them
-        var (keyCardIds, errorCode) = await externalGuestKeyCardService.IssueGuestKeyCardsAsync(booking, now,
-            clock.AtLocalTime(booking.CheckOutDate, CheckOutTime), command.KeyCardIds, command.OperatorId,
-            cancellationToken);
+        IReadOnlyList<int> keyCardIds;
+        string? errorCode;
+        try
+        {
+            (keyCardIds, errorCode) = await externalGuestKeyCardService.IssueGuestKeyCardsAsync(booking, now,
+                clock.AtLocalTime(booking.CheckOutDate, CheckOutTime), command.KeyCardIds, command.OperatorId,
+                cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new Result<CheckedInStay, BookingError>.Failure(BookingError.ConcurrencyConflict);
+        }
         if (errorCode is not null)
             return new Result<CheckedInStay, BookingError>.Failure(BookingError.KeyCardsNotIssued);
 
@@ -90,6 +102,8 @@ public class StayCommandService(
         var booking = await bookingRepository.FindByIdAsync(command.BookingId, cancellationToken);
         if (booking is null)
             return new Result<CheckedOutStay, BookingError>.Failure(BookingError.BookingNotFound);
+        if (command.ExpectedVersion is { } expectedVersion && expectedVersion != booking.Version)
+            return new Result<CheckedOutStay, BookingError>.Failure(BookingError.ConcurrencyConflict);
         if (command.OperatorId <= 0)
             return new Result<CheckedOutStay, BookingError>.Failure(BookingError.InvalidInput);
         if (!booking.CanBeCheckedOut)
@@ -111,8 +125,16 @@ public class StayCommandService(
         }
 
         // Access Control saves the end of the key cards together with the check-out
-        var endedKeyCards = await externalGuestKeyCardService.EndGuestKeyCardsAsync(booking.Id, now,
-            cancellationToken);
+        int endedKeyCards;
+        try
+        {
+            endedKeyCards = await externalGuestKeyCardService.EndGuestKeyCardsAsync(booking.Id, now,
+                cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new Result<CheckedOutStay, BookingError>.Failure(BookingError.ConcurrencyConflict);
+        }
 
         // The room needs cleaning on the departure day, unless the next guest already holds it that night
         var today = clock.Today;
