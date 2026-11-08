@@ -29,6 +29,7 @@ public static class BookingsActionResultAssembler
         BookingError.IdempotencyKeyReused => StatusCodes.Status409Conflict,
         BookingError.KeyCardsNotIssued => StatusCodes.Status409Conflict,
         BookingError.BalanceDue => StatusCodes.Status409Conflict,
+        BookingError.ConcurrencyConflict => StatusCodes.Status409Conflict,
         _ => StatusCodes.Status400BadRequest
     };
 
@@ -64,6 +65,8 @@ public static class BookingsActionResultAssembler
         BookingError.KeyCardsNotIssued =>
             "The key cards were not issued: a card is not valid or is already in use by another credential.",
         BookingError.BalanceDue => "The booking still owes part of its total, so it cannot be checked out.",
+        BookingError.ConcurrencyConflict =>
+            "The booking changed after it was read. Read it again and repeat the change with its new ETag.",
         _ => "An unexpected error occurred."
     };
 
