@@ -44,9 +44,9 @@ All routes start with `/api/v1`.
 | Rooms | `POST /properties/{propertyId}/rooms` | Create a room. |
 | Rooms | `GET /rooms/{roomId}` | Get a room. |
 | Rooms | `PUT /rooms/{roomId}` | Update the number, room type, and floor of a room. |
-| Rooms | `PUT /rooms/{roomId}/status` | Set or release the operational status of a room over a date range. |
+| Rooms | `PUT /rooms/{roomId}/status` | Set or release the operational status of a room over a date range. A status cannot cover a night held by a booking. |
 | Rooms | `GET /properties/{propertyId}/status-periods` | List the status periods of the rooms of a property, optionally between `from` and `to`. |
-| Rooms | `GET /properties/{propertyId}/room-availability?startDate=` | Get the status of each room for seven days, optionally filtered by `status`. |
+| Rooms | `GET /properties/{propertyId}/room-availability?startDate=` | Get the status of each room for seven days (booked, occupied, an operational status, or available), optionally filtered by `status`. |
 | Rooms | `GET /properties/{propertyId}/rate-plans` | List the rate plans of a property, with its currency. |
 | Rooms | `POST /properties/{propertyId}/rate-plans` | Create a rate plan. |
 | Rooms | `GET /rate-plans/{ratePlanId}` | Get a rate plan. |
@@ -78,7 +78,7 @@ All routes start with `/api/v1`.
 | Access Control | `GET /properties/{propertyId}/staff-members` | List the staff members of a property. |
 | Access Control | `GET /properties/{propertyId}/access-events` | List the access events of a property, paginated. |
 | Access Control | `GET /access-events/{accessEventId}`, `POST /access-events` | Get and record access events. |
-| Overview | `GET /properties/{propertyId}/dashboard` | Get the operational dashboard of a property. |
+| Overview | `GET /properties/{propertyId}/dashboard` | Get the operational dashboard of a property, including today's arrivals with their status and balance due. |
 | Overview | `GET /property-overviews` | Compare the properties on a date. |
 
 Scalar lists every endpoint with its request and response resources.
