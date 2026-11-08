@@ -63,6 +63,7 @@ public partial class Booking
         PropertyId = command.PropertyId;
         Code = code;
         Status = EBookingStatus.Pending;
+        Version = 1;
         GuestName = string.Empty;
         GuestEmail = string.Empty;
         ApplyDetails(command.GuestName, command.GuestEmail, command.GuestPhone, command.PreferredLanguage,
@@ -79,6 +80,12 @@ public partial class Booking
     ///     Gets the identifier of the property.
     /// </summary>
     public int PropertyId { get; private set; }
+
+    /// <summary>
+    ///     Gets the version of the booking, which grows with every change so that a client can tell whether the
+    ///     booking changed after it read it.
+    /// </summary>
+    public int Version { get; private set; }
 
     /// <summary>
     ///     Gets the code guests and staff use for the booking, such as BKG-1048.
@@ -256,6 +263,22 @@ public partial class Booking
     public bool AcceptsPayments => HoldsRoom;
 
     /// <summary>
+    ///     Records that a payment was received for the booking, which changes its balance and so its version.
+    /// </summary>
+    /// <remarks>
+    ///     Two payments recorded at the same time cannot both pass the balance check: the second one finds a newer
+    ///     version of the booking and is rejected.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">Thrown when the booking does not accept payments.</exception>
+    public void AcceptPayment()
+    {
+        if (!AcceptsPayments)
+            throw new InvalidOperationException($"A {Status} booking does not accept payments.");
+
+        Version++;
+    }
+
+    /// <summary>
     ///     Calculates what is still owed: the total minus the payments, never below zero.
     /// </summary>
     /// <param name="paidAmount">The sum of the payments of the booking.</param>
@@ -388,6 +411,7 @@ public partial class Booking
         ApplyDetails(command.GuestName, command.GuestEmail, command.GuestPhone, command.PreferredLanguage,
             command.CheckInDate, command.CheckOutDate, command.Guests, command.RoomTypeId, command.RoomId,
             command.RatePlanId, command.GuestRequest, totalAmount);
+        Version++;
     }
 
     /// <summary>
@@ -404,6 +428,7 @@ public partial class Booking
             throw new InvalidOperationException($"A {Status} booking cannot be confirmed.");
 
         Status = EBookingStatus.Confirmed;
+        Version++;
         ConfirmedAt = at;
         ConfirmedBy = by;
     }
@@ -428,6 +453,7 @@ public partial class Booking
             throw new InvalidOperationException($"A {Status} booking cannot be cancelled.");
 
         Status = EBookingStatus.Cancelled;
+        Version++;
         CancelledAt = at;
         CancelledBy = by;
         CancellationReason = reason;
@@ -451,6 +477,7 @@ public partial class Booking
             throw new InvalidOperationException($"A {Status} booking cannot be marked as a no-show on {today}.");
 
         Status = EBookingStatus.NoShow;
+        Version++;
         NoShowAt = at;
         NoShowBy = by;
     }
@@ -471,6 +498,7 @@ public partial class Booking
             throw new InvalidOperationException($"A {Status} booking cannot be restored on {today}.");
 
         Status = EBookingStatus.Pending;
+        Version++;
         ConfirmedAt = null;
         ConfirmedBy = null;
         CancelledAt = null;
@@ -509,6 +537,7 @@ public partial class Booking
             throw new InvalidOperationException($"A {Status} booking cannot be checked in on {today}.");
 
         Status = EBookingStatus.CheckedIn;
+        Version++;
         CheckedInAt = at;
         CheckedInBy = by;
         GuestDocumentType = documentType;
@@ -539,6 +568,7 @@ public partial class Booking
             throw new InvalidOperationException("A booking with a balance due cannot be checked out.");
 
         Status = EBookingStatus.CheckedOut;
+        Version++;
         CheckedOutAt = at;
         CheckedOutBy = by;
         RoomCondition = roomCondition;
