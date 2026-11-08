@@ -34,7 +34,9 @@ public static class DashboardResourceFromEntityAssembler
                 arrival.RoomNumber,
                 arrival.CheckInDate,
                 arrival.CheckOutDate,
-                arrival.Arrived)),
+                arrival.Arrived,
+                OverviewEnumNames.ToName(arrival.Status),
+                arrival.BalanceDue)),
             entity.DailyPerformance?.Select(day => new DailyPerformanceResource(
                 day.Date,
                 day.Revenue,

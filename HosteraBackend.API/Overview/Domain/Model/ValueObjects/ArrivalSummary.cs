@@ -12,6 +12,8 @@ namespace HosteraBackend.API.Overview.Domain.Model.ValueObjects;
 /// <param name="CheckInDate">The day of arrival</param>
 /// <param name="CheckOutDate">The day of departure</param>
 /// <param name="Arrived">Whether the guest already checked in</param>
+/// <param name="Status">The status of the booking, such as Pending when it still awaits confirmation</param>
+/// <param name="BalanceDue">What the booking still owes</param>
 public record ArrivalSummary(
     int BookingId,
     string BookingCode,
@@ -19,7 +21,9 @@ public record ArrivalSummary(
     string? RoomNumber,
     DateOnly CheckInDate,
     DateOnly CheckOutDate,
-    bool Arrived)
+    bool Arrived,
+    EBookingStatus Status,
+    decimal BalanceDue)
 {
     /// <summary>
     ///     Lists the arrivals of a day: the bookings due that day and those that already checked in that day.
@@ -44,7 +48,9 @@ public record ArrivalSummary(
                 booking.RoomId is { } roomId ? roomNumbers.GetValueOrDefault(roomId) : null,
                 booking.CheckInDate,
                 booking.CheckOutDate,
-                booking.Status == EBookingStatus.CheckedIn))
+                booking.Status == EBookingStatus.CheckedIn,
+                booking.Status,
+                booking.BalanceDue))
             .OrderBy(arrival => arrival.Arrived)
             .ThenBy(arrival => arrival.GuestName)
             .ToList();
