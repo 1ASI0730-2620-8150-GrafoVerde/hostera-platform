@@ -17,6 +17,9 @@ namespace HosteraBackend.API.Bookings.Domain.Model.Commands;
 /// <param name="RoomId">The identifier of the booked room, which belongs to the room type</param>
 /// <param name="RatePlanId">The identifier of the rate plan that prices the nights</param>
 /// <param name="GuestRequest">An optional note in which the guest asks for something for the stay</param>
+/// <param name="ExpectedVersion">
+///     The version of the booking the client read, or null to skip the check; a newer version rejects the change
+/// </param>
 public record UpdateBookingCommand(
     int BookingId,
     string GuestName,
@@ -29,4 +32,5 @@ public record UpdateBookingCommand(
     int RoomTypeId,
     int RoomId,
     int RatePlanId,
-    string? GuestRequest);
+    string? GuestRequest,
+    int? ExpectedVersion = null);

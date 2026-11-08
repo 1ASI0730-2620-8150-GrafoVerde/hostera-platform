@@ -12,9 +12,13 @@ namespace HosteraBackend.API.Bookings.Domain.Model.Commands;
 /// <param name="OperatorId">The identifier of the operator who makes the change</param>
 /// <param name="CancellationReason">The ECancellationReason, required to cancel</param>
 /// <param name="CancellationNote">An internal note about the cancellation, required for the Other reason</param>
+/// <param name="ExpectedVersion">
+///     The version of the booking the client read, or null to skip the check; a newer version rejects the change
+/// </param>
 public record TransitionBookingCommand(
     int BookingId,
     EBookingStatus TargetStatus,
     int OperatorId,
     ECancellationReason? CancellationReason = null,
-    string? CancellationNote = null);
+    string? CancellationNote = null,
+    int? ExpectedVersion = null);

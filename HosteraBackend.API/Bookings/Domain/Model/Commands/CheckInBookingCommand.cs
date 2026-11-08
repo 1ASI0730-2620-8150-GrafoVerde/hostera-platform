@@ -11,10 +11,14 @@ namespace HosteraBackend.API.Bookings.Domain.Model.Commands;
 /// <param name="DocumentVerified">Whether reception checked that the document belongs to the guest present</param>
 /// <param name="KeyCardIds">The four hexadecimal characters of each card encoded for the guest</param>
 /// <param name="OperatorId">The identifier of the operator who completes the check-in</param>
+/// <param name="ExpectedVersion">
+///     The version of the booking the client read, or null to skip the check; a newer version rejects the change
+/// </param>
 public record CheckInBookingCommand(
     int BookingId,
     EDocumentType DocumentType,
     string DocumentNumber,
     bool DocumentVerified,
     IReadOnlyList<string> KeyCardIds,
-    int OperatorId);
+    int OperatorId,
+    int? ExpectedVersion = null);

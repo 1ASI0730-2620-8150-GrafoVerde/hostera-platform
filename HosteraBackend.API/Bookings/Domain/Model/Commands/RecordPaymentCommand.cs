@@ -14,6 +14,9 @@ namespace HosteraBackend.API.Bookings.Domain.Model.Commands;
 /// <param name="IdempotencyKey">
 ///     An optional key chosen by the client, so that repeating the same request does not record the payment twice
 /// </param>
+/// <param name="ExpectedVersion">
+///     The version of the booking the client read, or null to skip the check; a newer version rejects the change
+/// </param>
 public record RecordPaymentCommand(
     int BookingId,
     decimal Amount,
@@ -21,4 +24,5 @@ public record RecordPaymentCommand(
     DateTimeOffset PaidAt,
     string? Reference,
     int RecordedBy,
-    string? IdempotencyKey);
+    string? IdempotencyKey,
+    int? ExpectedVersion = null);
