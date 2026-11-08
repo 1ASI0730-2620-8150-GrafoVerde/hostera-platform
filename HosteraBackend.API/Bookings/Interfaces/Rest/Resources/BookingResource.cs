@@ -5,6 +5,7 @@ namespace HosteraBackend.API.Bookings.Interfaces.Rest.Resources;
 /// </summary>
 /// <param name="Id">The unique identifier of the booking</param>
 /// <param name="PropertyId">The identifier of the property</param>
+/// <param name="Version">The version of the booking, also sent as its ETag</param>
 /// <param name="Code">The code of the booking, such as BKG-1048</param>
 /// <param name="Status">
 ///     The status of the booking: pending, confirmed, checked-in, checked-out, cancelled or no-show
@@ -44,6 +45,7 @@ namespace HosteraBackend.API.Bookings.Interfaces.Rest.Resources;
 public record BookingResource(
     int Id,
     int PropertyId,
+    int Version,
     string Code,
     string Status,
     string GuestName,

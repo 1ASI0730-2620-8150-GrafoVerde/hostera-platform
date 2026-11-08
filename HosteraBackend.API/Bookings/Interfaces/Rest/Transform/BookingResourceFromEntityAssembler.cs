@@ -21,6 +21,7 @@ public static class BookingResourceFromEntityAssembler
         return new BookingResource(
             entity.Id,
             entity.PropertyId,
+            entity.Version,
             entity.Code,
             BookingsEnumNames.ToName(entity.Status),
             entity.GuestName,
