@@ -1,5 +1,6 @@
 using HosteraBackend.API.Rooms.Application.CommandServices;
 using HosteraBackend.API.Rooms.Application.Errors;
+using HosteraBackend.API.Rooms.Application.Internal.OutboundServices.ACL;
 using HosteraBackend.API.Rooms.Domain.Model.Aggregates;
 using HosteraBackend.API.Rooms.Domain.Model.Commands;
 using HosteraBackend.API.Rooms.Domain.Repositories;
@@ -21,12 +22,16 @@ namespace HosteraBackend.API.Rooms.Application.Internal.CommandServices;
 /// <param name="roomRepository">
 ///     The <see cref="IRoomRepository" /> to use.
 /// </param>
+/// <param name="externalBookingService">
+///     The <see cref="ExternalBookingService" /> that reads which nights the bookings hold.
+/// </param>
 /// <param name="unitOfWork">
 ///     The <see cref="IUnitOfWork" /> to use.
 /// </param>
 public class StatusPeriodCommandService(
     IStatusPeriodRepository statusPeriodRepository,
     IRoomRepository roomRepository,
+    ExternalBookingService externalBookingService,
     IUnitOfWork unitOfWork)
     : IStatusPeriodCommandService
 {
@@ -56,6 +61,12 @@ public class StatusPeriodCommandService(
             {
                 return Failure(RoomError.InvalidInput);
             }
+
+            // A day controlled by a booking takes its status from the booking, never from a status period
+            var roomAssignments = await externalBookingService.FetchRoomAssignmentsAsync(room.PropertyId,
+                command.StartDate, command.EndDate, room.Id, cancellationToken);
+            if (roomAssignments.Any(assignment => assignment.Overlaps(command.StartDate, command.EndDate)))
+                return Failure(RoomError.RoomHeldByBooking);
         }
 
         var overlapping = await statusPeriodRepository.FindByRoomIdAndPeriodAsync(room.Id, command.StartDate,

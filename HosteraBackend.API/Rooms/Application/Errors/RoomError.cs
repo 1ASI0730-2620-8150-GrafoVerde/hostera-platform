@@ -53,5 +53,10 @@ public enum RoomError
 	/// <summary>
 	/// The date range ends before it starts or is longer than the supported period.
 	/// </summary>
-	InvalidDateRange
+	InvalidDateRange,
+
+	/// <summary>
+	/// A booking holds the room on a day of the range, so the day cannot take an operational status.
+	/// </summary>
+	RoomHeldByBooking
 }
