@@ -9,7 +9,13 @@ namespace HosteraBackend.API.Bookings.Application.CommandServices;
 /// <param name="Payment">The payment.</param>
 /// <param name="BalanceDue">What the booking still owes after the payment.</param>
 /// <param name="PaymentStatus">How much of the booking total is paid after the payment.</param>
+/// <param name="BookingVersion">The version of the booking after the payment.</param>
 /// <param name="IsReplay">
 ///     True when a previous request with the same idempotency key already recorded the payment.
 /// </param>
-public record RecordedPayment(Payment Payment, decimal BalanceDue, EPaymentStatus PaymentStatus, bool IsReplay);
+public record RecordedPayment(
+    Payment Payment,
+    decimal BalanceDue,
+    EPaymentStatus PaymentStatus,
+    int BookingVersion,
+    bool IsReplay);

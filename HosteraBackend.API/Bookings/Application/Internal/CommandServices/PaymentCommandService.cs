@@ -54,6 +54,8 @@ public class PaymentCommandService(
                 return replay;
         }
 
+        if (command.ExpectedVersion is { } expectedVersion && expectedVersion != booking.Version)
+            return Failure(BookingError.ConcurrencyConflict);
         if (!booking.AcceptsPayments)
             return Failure(BookingError.PaymentsNotAccepted);
         if (command.Amount <= 0 || decimal.Round(command.Amount, 2) != command.Amount)
@@ -75,10 +77,16 @@ public class PaymentCommandService(
             return Failure(BookingError.InvalidInput);
         }
 
+        // The new version of the booking makes a concurrent payment fail instead of exceeding the balance
+        booking.AcceptPayment();
         await paymentRepository.AddAsync(payment, cancellationToken);
         try
         {
             await unitOfWork.CompleteAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Failure(BookingError.ConcurrencyConflict);
         }
         catch (DbUpdateException) when (!string.IsNullOrEmpty(idempotencyKey))
         {
@@ -90,7 +98,7 @@ public class PaymentCommandService(
 
         var newPaidAmount = paidAmount + payment.Amount;
         return new Result<RecordedPayment, BookingError>.Success(new RecordedPayment(payment,
-            booking.BalanceDue(newPaidAmount), booking.PaymentStatus(newPaidAmount), false));
+            booking.BalanceDue(newPaidAmount), booking.PaymentStatus(newPaidAmount), booking.Version, false));
     }
 
     private async Task<Result<RecordedPayment, BookingError>?> ReplayAsync(Booking booking,
@@ -105,7 +113,7 @@ public class PaymentCommandService(
 
         var paidAmount = await PaidAmountAsync(booking.Id, cancellationToken);
         return new Result<RecordedPayment, BookingError>.Success(new RecordedPayment(existing,
-            booking.BalanceDue(paidAmount), booking.PaymentStatus(paidAmount), true));
+            booking.BalanceDue(paidAmount), booking.PaymentStatus(paidAmount), booking.Version, true));
     }
 
     private async Task<decimal> PaidAmountAsync(int bookingId, CancellationToken cancellationToken)
