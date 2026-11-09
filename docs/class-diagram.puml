@@ -48,7 +48,10 @@
 
         package "Infrastructure" as SharedInfrastructure {
             class "BaseRepository<TEntity>" as BaseRepository implements IBaseRepository
-            class UnitOfWork implements IUnitOfWork
+            class UnitOfWork implements IUnitOfWork {
+                +CompleteAsync(CancellationToken cancellationToken): Task
+            }
+            note right of UnitOfWork : Saves every change in an explicit transaction
             class PropertyClock implements IClock {
                 +DefaultTimeZone: string = "America/Lima"
                 +PropertyClock(TimeProvider timeProvider, IConfiguration configuration)
@@ -580,6 +583,7 @@
                 +Booking(CreateBookingCommand command, string code, decimal totalAmount)
                 +Id: int
                 +PropertyId: int
+                +Version: int
                 +Code: string
                 +Status: EBookingStatus
                 +GuestName: string
@@ -615,6 +619,7 @@
                 +HoldsRoom: bool
                 +IsEditable: bool
                 +AcceptsPayments: bool
+                +AcceptPayment(): void
                 +BalanceDue(decimal paidAmount): decimal
                 +PaymentStatus(decimal paidAmount): EPaymentStatus
                 +CanBeConfirmed: bool
@@ -655,6 +660,7 @@
                 +DocumentVerified: bool
                 +KeyCardIds: IReadOnlyList<string>
                 +OperatorId: int
+                +ExpectedVersion: int?
             }
 
             class CheckOutBookingCommand <<record>> {
@@ -662,6 +668,7 @@
                 +RoomCondition: ERoomCondition
                 +DepartureNote: string?
                 +OperatorId: int
+                +ExpectedVersion: int?
             }
 
             class Payment <<Aggregate>> implements IAuditableEntity {
@@ -701,6 +708,7 @@
                 +Reference: string?
                 +RecordedBy: int
                 +IdempotencyKey: string?
+                +ExpectedVersion: int?
             }
 
             interface IPaymentRepository extends IBaseRepository {
@@ -733,6 +741,7 @@
                 +OperatorId: int
                 +CancellationReason: ECancellationReason?
                 +CancellationNote: string?
+                +ExpectedVersion: int?
             }
 
             enum EPreferredLanguage <<ValueObject>> {
@@ -789,6 +798,7 @@
                 +RoomId: int
                 +RatePlanId: int
                 +GuestRequest: string?
+                +ExpectedVersion: int?
             }
 
             class GetAllBookingsByPropertyIdQuery <<record>> {
@@ -845,6 +855,7 @@
                 KeyCardRequired
                 KeyCardsNotIssued
                 BalanceDue
+                ConcurrencyConflict
             }
 
             class CheckedInStay <<record>> {
@@ -878,6 +889,7 @@
                 +Payment: Payment
                 +BalanceDue: decimal
                 +PaymentStatus: EPaymentStatus
+                +BookingVersion: int
                 +IsReplay: bool
             }
 
@@ -986,6 +998,12 @@
                 +GetPaymentsByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
             }
 
+            class BookingETag <<static>> {
+                +IfMatchHeader: string = "If-Match"
+                +ToETag(int version): string
+                +ParseIfMatch(string? ifMatch): int?
+            }
+
             class BookingsActionResultAssembler <<static>> {
                 +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, BookingError> result, Func<TValue, IActionResult> successAction): IActionResult
                 +ToActionResultFromQueryResult<TValue>(ControllerBase controller, TValue? value, BookingError notFoundError, Func<TValue, IActionResult> successAction): IActionResult
@@ -1035,6 +1053,9 @@
         BookingsController ..> IBookingQueryService
         PropertyBookingsController ..> BookingsActionResultAssembler
         BookingsController ..> BookingsActionResultAssembler
+        BookingsController ..> BookingETag
+        BookingStaysController ..> BookingETag
+        BookingPaymentsController ..> BookingETag
     }
 
     package "Access Control Bounded Context" as AccessControl {
