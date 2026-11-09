@@ -1,6 +1,8 @@
 using HosteraBackend.API.Rooms.Application.Errors;
 using HosteraBackend.API.Shared.Application.Patterns;
+using HosteraBackend.API.Rooms.Resources;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace HosteraBackend.API.Rooms.Interfaces.Rest.Transform;
 
@@ -23,23 +25,11 @@ public static class RoomsActionResultAssembler
         _ => StatusCodes.Status400BadRequest
     };
 
-    private static string ToMessageFromRoomError(RoomError error) => error switch
+    private static string ToMessageFromRoomError(ControllerBase controller, RoomError error)
     {
-        RoomError.InvalidInput => "One or more values are not valid.",
-        RoomError.PropertyNotFound => "The specified property was not found.",
-        RoomError.RoomTypeNotFound => "The specified room type was not found.",
-        RoomError.DuplicateRoomTypeName => "Another room type of the property uses the same name.",
-        RoomError.RoomNotFound => "The specified room was not found.",
-        RoomError.DuplicateRoomNumber => "Another room of the property uses the same number.",
-        RoomError.RoomTypeFromAnotherProperty => "The room type belongs to a different property than the room.",
-        RoomError.InactiveRoomType => "The room type is inactive, so rooms cannot be assigned to it.",
-        RoomError.RoomTypeInUse =>
-            "The room type cannot be deleted while a room belongs to it or a rate plan lists it.",
-        RoomError.InvalidDateRange => "The date range ends before it starts or is longer than 366 days.",
-        RoomError.RoomHeldByBooking =>
-            "A booking holds the room on a day of the range, so the day cannot take an operational status.",
-        _ => "An unexpected error occurred."
-    };
+        var localizer = controller.HttpContext.RequestServices.GetRequiredService<IStringLocalizer<RoomsMessages>>();
+        return localizer[$"{nameof(RoomError)}.{error}"];
+    }
 
     private static int ToStatusCodeFromRateError(RateError error) => error switch
     {
@@ -50,18 +40,11 @@ public static class RoomsActionResultAssembler
         _ => StatusCodes.Status400BadRequest
     };
 
-    private static string ToMessageFromRateError(RateError error) => error switch
+    private static string ToMessageFromRateError(ControllerBase controller, RateError error)
     {
-        RateError.InvalidInput =>
-            "One or more values are not valid, or a refundable plan has no cancellation policy.",
-        RateError.InvalidDateRange => "The date range ends before it starts or is longer than 366 nights.",
-        RateError.RatePlanNotFound => "The specified rate plan was not found.",
-        RateError.DuplicateRatePlanName => "Another rate plan of the property uses the same name.",
-        RateError.RoomTypeNotInRatePlan => "The room type is not sold under the rate plan.",
-        RateError.PropertyNotFound => "The specified property was not found.",
-        RateError.UnknownRoomType => "One or more room types do not exist in the property of the rate plan.",
-        _ => "An unexpected error occurred."
-    };
+        var localizer = controller.HttpContext.RequestServices.GetRequiredService<IStringLocalizer<RoomsMessages>>();
+        return localizer[$"{nameof(RateError)}.{error}"];
+    }
 
     /// <summary>
     ///     Returns the success action, or a problem details response when the result is a failure.
@@ -133,7 +116,7 @@ public static class RoomsActionResultAssembler
         return controller.Problem(
             statusCode: ToStatusCodeFromRoomError(error),
             title: error.ToString(),
-            detail: ToMessageFromRoomError(error));
+            detail: ToMessageFromRoomError(controller, error));
     }
 
     /// <summary>
@@ -152,6 +135,6 @@ public static class RoomsActionResultAssembler
         return controller.Problem(
             statusCode: ToStatusCodeFromRateError(error),
             title: error.ToString(),
-            detail: ToMessageFromRateError(error));
+            detail: ToMessageFromRateError(controller, error));
     }
 }
