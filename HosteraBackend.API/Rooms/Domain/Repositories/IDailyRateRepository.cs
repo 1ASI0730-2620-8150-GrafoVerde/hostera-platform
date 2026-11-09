@@ -9,16 +9,16 @@ namespace HosteraBackend.API.Rooms.Domain.Repositories;
 public interface IDailyRateRepository : IBaseRepository<DailyRate>
 {
     /// <summary>
-    ///     Find the daily rates of a property in a period
+    ///     Find the daily rates of a property, optionally limited to a period
     /// </summary>
     /// <param name="propertyId">The identifier of the property.</param>
-    /// <param name="startDate">The first night of the period.</param>
-    /// <param name="endDate">The last night of the period.</param>
+    /// <param name="startDate">The first night of the period, or null for no lower limit.</param>
+    /// <param name="endDate">The last night of the period, or null for no upper limit.</param>
     /// <param name="cancellationToken">Token to cancel the asynchronous operation.</param>
     /// <returns>
-    ///     An Enumerable containing the daily rates of the period, or empty otherwise.
+    ///     An Enumerable containing the daily rates ordered by date, or empty otherwise.
     /// </returns>
-    Task<IEnumerable<DailyRate>> FindByPropertyIdAndPeriodAsync(int propertyId, DateOnly startDate, DateOnly endDate,
+    Task<IEnumerable<DailyRate>> FindByPropertyIdAndPeriodAsync(int propertyId, DateOnly? startDate, DateOnly? endDate,
         CancellationToken cancellationToken = default);
 
     /// <summary>

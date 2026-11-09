@@ -16,13 +16,16 @@ public class DailyRateRepository(AppDbContext context)
     : BaseRepository<DailyRate>(context), IDailyRateRepository
 {
     /// <inheritdoc />
-    public async Task<IEnumerable<DailyRate>> FindByPropertyIdAndPeriodAsync(int propertyId, DateOnly startDate,
-        DateOnly endDate, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<DailyRate>> FindByPropertyIdAndPeriodAsync(int propertyId, DateOnly? startDate,
+        DateOnly? endDate, CancellationToken cancellationToken = default)
     {
-        return await Context.Set<DailyRate>()
-            .Where(rate => rate.PropertyId == propertyId && rate.Date >= startDate && rate.Date <= endDate)
-            .OrderBy(rate => rate.Date)
-            .ToListAsync(cancellationToken);
+        var dailyRates = Context.Set<DailyRate>().Where(rate => rate.PropertyId == propertyId);
+        if (startDate is { } firstNight)
+            dailyRates = dailyRates.Where(rate => rate.Date >= firstNight);
+        if (endDate is { } lastNight)
+            dailyRates = dailyRates.Where(rate => rate.Date <= lastNight);
+
+        return await dailyRates.OrderBy(rate => rate.Date).ToListAsync(cancellationToken);
     }
 
     /// <inheritdoc />
