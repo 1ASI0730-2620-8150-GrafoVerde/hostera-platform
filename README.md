@@ -146,6 +146,21 @@ DROP DATABASE hostera;
 
 This removes the data created through the API.
 
+## Concurrency
+
+Booking responses carry the version of the booking in the `ETag` header and in the `version` field. To make sure a change does not overwrite someone else's, send that ETag back in `If-Match` when updating a booking, changing its status, recording a payment, or checking in or out:
+
+```http
+PUT /api/v1/bookings/12
+If-Match: "4"
+```
+
+When the booking changed after it was read, the API answers `409 Conflict` with the `ConcurrencyConflict` code and keeps the newer data. Requests without `If-Match` skip the check. Payments always increase the version of their booking, so two payments sent at the same time cannot exceed the balance due.
+
+Every save runs in a database transaction, so a request that fails halfway leaves no partial changes.
+
+Browser clients can read the `ETag`, `X-Total-Count`, and `Idempotent-Replayed` response headers.
+
 ## Error responses
 
 Errors use the RFC 9457 problem details format. The `title` holds a stable error code, such as `DuplicateRoomTypeName`, and `detail` explains it:
@@ -161,7 +176,7 @@ Errors use the RFC 9457 problem details format. The `title` holds a stable error
 
 - **400 Bad Request**: a value is missing or not valid.
 - **404 Not Found**: the resource, or the property it belongs to, does not exist.
-- **409 Conflict**: the request breaks a business rule, such as a duplicate name or insufficient stock.
+- **409 Conflict**: the request breaks a business rule, such as a duplicate name or insufficient stock, or the booking changed after it was read.
 - **422 Unprocessable Content**: a payment amount is not valid or exceeds the balance due.
 
 ## Project structure
