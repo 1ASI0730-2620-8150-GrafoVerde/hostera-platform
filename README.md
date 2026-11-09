@@ -146,6 +146,12 @@ DROP DATABASE hostera;
 
 This removes the data created through the API.
 
+### Demonstration data
+
+In the Development environment, a new database receives a demonstration hotel the first time the API starts. Both properties get the room types, rooms, rate plans, storage locations, inventory items, and staff credentials of the frontend mock data, and their bookings, payments, room statuses, and access events are placed around the current day: stays from the last weeks, guests staying now, today's arrivals, and bookings ahead. A database that already has room types is left unchanged.
+
+To start with an empty database instead, set `Hostera:SeedDemoData` to `false` in `appsettings.Development.json` or with the `Hostera__SeedDemoData=false` environment variable. To load the demonstration data again, drop the database and restart the API.
+
 ## Concurrency
 
 Booking responses carry the version of the booking in the `ETag` header and in the `version` field. To make sure a change does not overwrite someone else's, send that ETag back in `If-Match` when updating a booking, changing its status, recording a payment, or checking in or out:
