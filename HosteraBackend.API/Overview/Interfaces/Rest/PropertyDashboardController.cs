@@ -3,6 +3,7 @@ using HosteraBackend.API.Overview.Application.QueryServices;
 using HosteraBackend.API.Overview.Domain.Model.Queries;
 using HosteraBackend.API.Overview.Interfaces.Rest.Resources;
 using HosteraBackend.API.Overview.Interfaces.Rest.Transform;
+using HosteraBackend.API.Shared.Application.Internal.OutboundServices;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HosteraBackend.API.Overview.Interfaces.Rest;
@@ -11,7 +12,7 @@ namespace HosteraBackend.API.Overview.Interfaces.Rest;
 [Route("api/v1/properties/{propertyId:int}/dashboard")]
 [Produces(MediaTypeNames.Application.Json)]
 [Tags("Operational Overview Endpoints")]
-public class PropertyDashboardController(IOverviewQueryService overviewQueryService) : ControllerBase
+public class PropertyDashboardController(IOverviewQueryService overviewQueryService, IClock clock) : ControllerBase
 {
     [HttpGet]
     [EndpointSummary("Get the operational dashboard of a property")]
@@ -28,7 +29,7 @@ public class PropertyDashboardController(IOverviewQueryService overviewQueryServ
         [FromQuery] DateOnly? to,
         CancellationToken cancellationToken)
     {
-        var day = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var day = date ?? clock.Today;
         var lastNight = to ?? day;
         var firstNight = from ?? lastNight.AddDays(-6);
 
