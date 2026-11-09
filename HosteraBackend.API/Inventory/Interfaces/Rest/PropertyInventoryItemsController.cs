@@ -32,7 +32,8 @@ public class PropertyInventoryItemsController(
     [HttpPost]
     [EndpointSummary("Create an inventory item")]
     [EndpointDescription(
-        "Create an inventory item in a property. The code must be unique within the property and the primary location must belong to it")]
+        "Create an inventory item in a property. The code must be unique within the property and the primary location must belong to it. " +
+        "An optional opening quantity is recorded in the primary location as an opening stock adjustment, together with the item")]
     [ProducesResponseType(typeof(InventoryItemResource), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
