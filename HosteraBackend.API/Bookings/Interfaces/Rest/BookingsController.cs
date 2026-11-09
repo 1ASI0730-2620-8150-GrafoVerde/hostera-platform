@@ -48,6 +48,7 @@ public class BookingsController(
             return BookingsActionResultAssembler.ToActionResultFromQueryResult(this, booking,
                 BookingError.BookingNotFound, Ok);
 
+        Response.Headers.ETag = BookingETag.ToETag(booking.Version);
         return Ok(await ToResourceAsync(booking, cancellationToken));
     }
 
@@ -70,15 +71,23 @@ public class BookingsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UpdateBooking([FromRoute] int bookingId,
-        [FromBody] UpdateBookingResource resource, CancellationToken cancellationToken)
+        [FromBody] UpdateBookingResource resource,
+        [FromHeader(Name = BookingETag.IfMatchHeader)] string? ifMatch,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var command = UpdateBookingCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId);
+            var command = UpdateBookingCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId) with
+            {
+                ExpectedVersion = BookingETag.ParseIfMatch(ifMatch)
+            };
             var result = await bookingCommandService.Handle(command, cancellationToken);
 
             if (result is Result<Booking, BookingError>.Success { Value: var updated })
+            {
+                Response.Headers.ETag = BookingETag.ToETag(updated.Version);
                 return Ok(await ToResourceAsync(updated, cancellationToken));
+            }
             return BookingsActionResultAssembler.ToActionResultFromResult(this, result, Ok);
         }
         catch (ArgumentException exception)
@@ -108,11 +117,16 @@ public class BookingsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> TransitionBooking([FromRoute] int bookingId,
-        [FromBody] TransitionBookingResource resource, CancellationToken cancellationToken)
+        [FromBody] TransitionBookingResource resource,
+        [FromHeader(Name = BookingETag.IfMatchHeader)] string? ifMatch,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var command = TransitionBookingCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId);
+            var command = TransitionBookingCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId) with
+            {
+                ExpectedVersion = BookingETag.ParseIfMatch(ifMatch)
+            };
             var result = await bookingCommandService.Handle(command, cancellationToken);
 
             if (result is Result<Booking, BookingError>.Failure { Error: BookingError.InvalidStatusChange })
@@ -124,7 +138,10 @@ public class BookingsController(
             }
 
             if (result is Result<Booking, BookingError>.Success { Value: var changed })
+            {
+                Response.Headers.ETag = BookingETag.ToETag(changed.Version);
                 return Ok(await ToResourceAsync(changed, cancellationToken));
+            }
             return BookingsActionResultAssembler.ToActionResultFromResult(this, result, Ok);
         }
         catch (ArgumentException exception)

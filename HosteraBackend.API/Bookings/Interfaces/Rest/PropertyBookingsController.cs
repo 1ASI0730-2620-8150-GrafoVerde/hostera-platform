@@ -122,11 +122,15 @@ public class PropertyBookingsController(
             var result = await bookingCommandService.Handle(command, cancellationToken);
 
             return BookingsActionResultAssembler.ToActionResultFromResult(this, result,
-                created => CreatedAtAction(
+                created =>
+                {
+                    Response.Headers.ETag = BookingETag.ToETag(created.Version);
+                    return CreatedAtAction(
                     nameof(BookingsController.GetBookingById),
                     "Bookings",
                     new { bookingId = created.Id },
-                    BookingResourceFromEntityAssembler.ToResourceFromEntity(created, 0)));
+                        BookingResourceFromEntityAssembler.ToResourceFromEntity(created, 0));
+                });
         }
         catch (ArgumentException exception)
         {

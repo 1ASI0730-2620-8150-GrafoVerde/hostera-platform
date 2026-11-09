@@ -45,16 +45,24 @@ public class BookingStaysController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CheckInBooking([FromRoute] int bookingId,
-        [FromBody] CheckInBookingResource resource, CancellationToken cancellationToken)
+        [FromBody] CheckInBookingResource resource,
+        [FromHeader(Name = BookingETag.IfMatchHeader)] string? ifMatch,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var command = CheckInBookingCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId);
+            var command = CheckInBookingCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId) with
+            {
+                ExpectedVersion = BookingETag.ParseIfMatch(ifMatch)
+            };
             var result = await stayCommandService.Handle(command, cancellationToken);
 
             if (result is Result<CheckedInStay, BookingError>.Success { Value: var stay })
+            {
+                Response.Headers.ETag = BookingETag.ToETag(stay.Booking.Version);
                 return Ok(new CheckedInStayResource(await ToResourceAsync(stay.Booking, cancellationToken),
                     stay.KeyCardIds));
+            }
             return BookingsActionResultAssembler.ToActionResultFromResult(this, result, Ok);
         }
         catch (ArgumentException exception)
@@ -83,16 +91,24 @@ public class BookingStaysController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CheckOutBooking([FromRoute] int bookingId,
-        [FromBody] CheckOutBookingResource resource, CancellationToken cancellationToken)
+        [FromBody] CheckOutBookingResource resource,
+        [FromHeader(Name = BookingETag.IfMatchHeader)] string? ifMatch,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var command = CheckOutBookingCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId);
+            var command = CheckOutBookingCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId) with
+            {
+                ExpectedVersion = BookingETag.ParseIfMatch(ifMatch)
+            };
             var result = await stayCommandService.Handle(command, cancellationToken);
 
             if (result is Result<CheckedOutStay, BookingError>.Success { Value: var stay })
+            {
+                Response.Headers.ETag = BookingETag.ToETag(stay.Booking.Version);
                 return Ok(new CheckedOutStayResource(await ToResourceAsync(stay.Booking, cancellationToken),
                     stay.EndedKeyCards, stay.RoomMarkedForCleaning));
+            }
             return BookingsActionResultAssembler.ToActionResultFromResult(this, result, Ok);
         }
         catch (ArgumentException exception)

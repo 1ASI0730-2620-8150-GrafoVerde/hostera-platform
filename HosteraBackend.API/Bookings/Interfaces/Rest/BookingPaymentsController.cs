@@ -71,18 +71,21 @@ public class BookingPaymentsController(
     public async Task<IActionResult> RecordPayment([FromRoute] int bookingId,
         [FromBody] RecordPaymentResource resource,
         [FromHeader(Name = IdempotencyKeyHeader)] string? idempotencyKey,
+        [FromHeader(Name = BookingETag.IfMatchHeader)] string? ifMatch,
         CancellationToken cancellationToken)
     {
         try
         {
             var command =
-                RecordPaymentCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId, idempotencyKey);
+                RecordPaymentCommandFromResourceAssembler.ToCommandFromResource(resource, bookingId, idempotencyKey)
+                    with { ExpectedVersion = BookingETag.ParseIfMatch(ifMatch) };
             var result = await paymentCommandService.Handle(command, cancellationToken);
 
             return BookingsActionResultAssembler.ToActionResultFromResult(this, result, recorded =>
             {
                 var recordedResource =
                     RecordedPaymentResourceFromRecordedPaymentAssembler.ToResourceFromRecordedPayment(recorded);
+                Response.Headers.ETag = BookingETag.ToETag(recorded.BookingVersion);
                 if (recorded.IsReplay)
                 {
                     Response.Headers["Idempotent-Replayed"] = "true";
