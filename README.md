@@ -52,7 +52,7 @@ All routes start with `/api/v1`.
 | Rooms | `GET /rate-plans/{ratePlanId}` | Get a rate plan. |
 | Rooms | `PUT /rate-plans/{ratePlanId}` | Update a rate plan; plans are made inactive instead of deleted. |
 | Rooms | `PUT /rate-plans/{ratePlanId}/daily-rates` | Set the price of a range of nights for a room type, or return them to the base rate. |
-| Rooms | `GET /properties/{propertyId}/daily-rates?startDate=&endDate=` | List the daily rates of a property between two nights. |
+| Rooms | `GET /properties/{propertyId}/daily-rates` | List the daily rates of a property, optionally limited with `startDate` and `endDate`. |
 | Bookings | `GET /properties/{propertyId}/bookings` | List the bookings of a property, filtered by `status`, `roomId`, `from`, `to`, and `search`, and optionally paged with `page` and `pageSize` (`X-Total-Count` header). |
 | Bookings | `POST /properties/{propertyId}/bookings` | Create a pending booking; the server assigns its code and total. |
 | Bookings | `GET /bookings/{bookingId}` | Get a booking. |
@@ -65,7 +65,7 @@ All routes start with `/api/v1`.
 | Bookings | `POST /bookings/{bookingId}/transitions` | Confirm, cancel, mark as a no-show, or restore a booking. A rejected transition returns the current status and the allowed transitions. |
 | Inventory | `GET`, `POST /properties/{propertyId}/storage-locations` | List and create storage locations. |
 | Inventory | `GET`, `PUT`, `DELETE /storage-locations/{storageLocationId}` | Get, update, and delete a storage location. |
-| Inventory | `GET`, `POST /properties/{propertyId}/inventory-items` | List and create inventory items. |
+| Inventory | `GET`, `POST /properties/{propertyId}/inventory-items` | List and create inventory items; an optional `openingQuantity` is recorded with the new item. |
 | Inventory | `GET`, `PUT /inventory-items/{inventoryItemId}` | Get and update an inventory item. |
 | Inventory | `POST /inventory-items/{inventoryItemId}/stock-adjustments` | Adjust or transfer stock. |
 | Inventory | `DELETE /inventory-items/{inventoryItemId}/stocks/{storageLocationId}` | Remove a storage location from an item. |
