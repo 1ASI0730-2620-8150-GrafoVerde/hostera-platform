@@ -1,3 +1,4 @@
+using HosteraBackend.API.Rooms.Application.Internal.OutboundServices.ACL;
 using HosteraBackend.API.Rooms.Application.QueryServices;
 using HosteraBackend.API.Rooms.Domain.Model.Aggregates;
 using HosteraBackend.API.Rooms.Domain.Model.Queries;
@@ -15,7 +16,13 @@ namespace HosteraBackend.API.Rooms.Application.Internal.QueryServices;
 /// <param name="statusPeriodRepository">
 ///     The <see cref="IStatusPeriodRepository" /> to use.
 /// </param>
-public class RoomQueryService(IRoomRepository roomRepository, IStatusPeriodRepository statusPeriodRepository)
+/// <param name="externalBookingService">
+///     The <see cref="ExternalBookingService" /> that reads the room assignments.
+/// </param>
+public class RoomQueryService(
+    IRoomRepository roomRepository,
+    IStatusPeriodRepository statusPeriodRepository,
+    ExternalBookingService externalBookingService)
     : IRoomQueryService
 {
     /// <inheritdoc />
@@ -33,8 +40,8 @@ public class RoomQueryService(IRoomRepository roomRepository, IStatusPeriodRepos
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Room assignments come from the bookings, which are not managed by the platform yet, so a day is decided by
-    ///     the status period that covers it and is available otherwise.
+    ///     A room assignment decides a day first (Booked, or Occupied once the guest checked in), then the status
+    ///     period that covers it, and the room is Available otherwise.
     /// </remarks>
     public async Task<IEnumerable<RoomAvailability>> Handle(GetRoomAvailabilityByPropertyIdQuery query,
         CancellationToken cancellationToken)
@@ -43,13 +50,18 @@ public class RoomQueryService(IRoomRepository roomRepository, IStatusPeriodRepos
         var rooms = await roomRepository.FindByPropertyIdAsync(query.PropertyId, cancellationToken);
         var statusPeriods = (await statusPeriodRepository.FindByPropertyIdAsync(query.PropertyId, query.StartDate,
             lastDate, cancellationToken)).ToList();
+        var roomAssignments = await externalBookingService.FetchRoomAssignmentsAsync(query.PropertyId,
+            query.StartDate, lastDate, null, cancellationToken);
 
         var availability = rooms.Select(room =>
         {
             var roomStatusPeriods = statusPeriods.Where(period => period.RoomId == room.Id).ToList();
+            var assignments = roomAssignments.Where(assignment => assignment.RoomId == room.Id).ToList();
             var days = Enumerable.Range(0, GetRoomAvailabilityByPropertyIdQuery.Days)
                 .Select(offset => query.StartDate.AddDays(offset))
-                .Select(date => new RoomDayStatus(date, ToDayStatus(roomStatusPeriods, date)))
+                .Select(date => new RoomDayStatus(date,
+                    assignments.FirstOrDefault(assignment => assignment.Covers(date))?.DayStatus
+                    ?? ToDayStatus(roomStatusPeriods, date)))
                 .ToList();
             return new RoomAvailability(room, days);
         });

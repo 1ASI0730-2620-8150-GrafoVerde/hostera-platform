@@ -41,4 +41,14 @@ public interface ICredentialRepository : IBaseRepository<Credential>
     /// </returns>
     Task<IEnumerable<Credential>> FindByStaffMemberIdAsync(int staffMemberId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Find the guest key cards issued for a booking
+    /// </summary>
+    /// <param name="bookingId">The identifier of the booking.</param>
+    /// <param name="cancellationToken">Token to cancel the asynchronous operation.</param>
+    /// <returns>
+    ///     An Enumerable containing the key cards of the booking, or empty otherwise.
+    /// </returns>
+    Task<IEnumerable<Credential>> FindByBookingIdAsync(int bookingId, CancellationToken cancellationToken = default);
 }

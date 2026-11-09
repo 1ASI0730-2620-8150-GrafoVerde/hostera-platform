@@ -45,4 +45,13 @@ public interface ICredentialCommandService
     /// <returns>The revoked <see cref="Credential" />, or the <see cref="CredentialError" /> that prevented it.</returns>
     Task<Result<Credential, CredentialError>> Handle(RevokeCredentialCommand command,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Handles the end guest key cards command.
+    /// </summary>
+    /// <param name="command">The <see cref="EndGuestKeyCardsCommand" /> command to handle.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The key cards that stopped opening doors, or the <see cref="CredentialError" /> that prevented it.</returns>
+    Task<Result<IEnumerable<Credential>, CredentialError>> Handle(EndGuestKeyCardsCommand command,
+        CancellationToken cancellationToken);
 }

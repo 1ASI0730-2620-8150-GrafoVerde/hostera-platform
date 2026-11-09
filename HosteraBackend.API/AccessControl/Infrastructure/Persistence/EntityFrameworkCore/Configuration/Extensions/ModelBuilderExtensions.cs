@@ -58,8 +58,9 @@ public static class ModelBuilderExtensions
             credential.OwnsOne(c => c.ValidityPeriod, period =>
             {
                 period.WithOwner().HasForeignKey("Id");
-                period.Property(p => p.ValidFrom).HasColumnName("valid_from").IsRequired();
-                period.Property(p => p.ValidUntil).HasColumnName("valid_until");
+                // Microseconds are kept, so a card ended in the same second it started still ends after it starts
+                period.Property(p => p.ValidFrom).HasColumnName("valid_from").HasPrecision(6).IsRequired();
+                period.Property(p => p.ValidUntil).HasColumnName("valid_until").HasPrecision(6);
             });
             credential.Navigation(c => c.ValidityPeriod).IsRequired();
 

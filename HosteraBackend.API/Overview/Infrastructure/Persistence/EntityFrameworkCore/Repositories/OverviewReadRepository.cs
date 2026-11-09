@@ -89,7 +89,10 @@ public class OverviewReadRepository(AppDbContext context, ILogger<OverviewReadRe
                 .SqlQuery<BookingRow>($"""
                                        SELECT id AS Id, code AS Code, status AS Status, guest_name AS GuestName,
                                               room_id AS RoomId, check_in_date AS CheckInDate,
-                                              check_out_date AS CheckOutDate, total_amount AS TotalAmount
+                                              check_out_date AS CheckOutDate, total_amount AS TotalAmount,
+                                              (SELECT COALESCE(SUM(payments.amount), 0)
+                                               FROM payments
+                                               WHERE payments.booking_id = bookings.id) AS PaidAmount
                                        FROM bookings
                                        WHERE property_id = {propertyId}
                                          AND check_in_date <= {lastNight}
@@ -101,7 +104,7 @@ public class OverviewReadRepository(AppDbContext context, ILogger<OverviewReadRe
                 .Select(row => ParseStatus<EBookingStatus>(row.Status) is { } status
                     ? new BookingReadModel(row.Id, row.Code, status, row.GuestName, row.RoomId,
                         DateOnly.FromDateTime(row.CheckInDate), DateOnly.FromDateTime(row.CheckOutDate),
-                        row.TotalAmount)
+                        row.TotalAmount, row.PaidAmount)
                     : null)
                 .OfType<BookingReadModel>()
                 .ToList();
@@ -167,5 +170,6 @@ public class OverviewReadRepository(AppDbContext context, ILogger<OverviewReadRe
         public DateTime CheckInDate { get; set; }
         public DateTime CheckOutDate { get; set; }
         public decimal TotalAmount { get; set; }
+        public decimal PaidAmount { get; set; }
     }
 }

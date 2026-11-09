@@ -19,6 +19,7 @@ public static class RoomsActionResultAssembler
         RoomError.DuplicateRoomNumber => StatusCodes.Status409Conflict,
         RoomError.InactiveRoomType => StatusCodes.Status409Conflict,
         RoomError.RoomTypeInUse => StatusCodes.Status409Conflict,
+        RoomError.RoomHeldByBooking => StatusCodes.Status409Conflict,
         _ => StatusCodes.Status400BadRequest
     };
 
@@ -35,6 +36,8 @@ public static class RoomsActionResultAssembler
         RoomError.RoomTypeInUse =>
             "The room type cannot be deleted while a room belongs to it or a rate plan lists it.",
         RoomError.InvalidDateRange => "The date range ends before it starts or is longer than 366 days.",
+        RoomError.RoomHeldByBooking =>
+            "A booking holds the room on a day of the range, so the day cannot take an operational status.",
         _ => "An unexpected error occurred."
     };
 

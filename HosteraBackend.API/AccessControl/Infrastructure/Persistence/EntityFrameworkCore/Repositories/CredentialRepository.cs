@@ -43,4 +43,13 @@ public class CredentialRepository(AppDbContext context)
             .Where(credential => credential.StaffMemberId == staffMemberId)
             .ToListAsync(cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<IEnumerable<Credential>> FindByBookingIdAsync(int bookingId,
+        CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<Credential>()
+            .Where(credential => credential.BookingId == bookingId)
+            .ToListAsync(cancellationToken);
+    }
 }

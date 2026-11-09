@@ -10,6 +10,8 @@ namespace HosteraBackend.API.Overview.Interfaces.Rest.Resources;
 /// <param name="CheckInDate">The day of arrival</param>
 /// <param name="CheckOutDate">The day of departure</param>
 /// <param name="Arrived">Whether the guest already checked in</param>
+/// <param name="Status">The status of the booking: pending, confirmed or checked-in</param>
+/// <param name="BalanceDue">What the booking still owes</param>
 public record ArrivalSummaryResource(
     int BookingId,
     string BookingCode,
@@ -17,4 +19,6 @@ public record ArrivalSummaryResource(
     string? RoomNumber,
     DateOnly CheckInDate,
     DateOnly CheckOutDate,
-    bool Arrived);
+    bool Arrived,
+    string Status,
+    decimal BalanceDue);

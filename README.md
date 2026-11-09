@@ -22,11 +22,10 @@ The `Shared` context holds the building blocks used by every context: the base r
 | Context | Responsibility |
 | --- | --- |
 | Rooms & Availability | Properties, room types, rooms, operational status periods, room availability, rate plans, and daily rates. |
+| Bookings | Bookings of guest stays, their codes, totals, status changes, payments, balances, check-in, and check-out. |
 | Inventory Management | Storage locations, inventory items, their stock per location, and stock adjustments. |
 | Access Control | RFID credentials for guests and staff, staff members, and access events. |
 | Overview | The operational dashboard of a property and the comparison of properties. It only reads other contexts. |
-
-Bookings and payments are still in development.
 
 ## Endpoints
 
@@ -45,15 +44,25 @@ All routes start with `/api/v1`.
 | Rooms | `POST /properties/{propertyId}/rooms` | Create a room. |
 | Rooms | `GET /rooms/{roomId}` | Get a room. |
 | Rooms | `PUT /rooms/{roomId}` | Update the number, room type, and floor of a room. |
-| Rooms | `PUT /rooms/{roomId}/status` | Set or release the operational status of a room over a date range. |
+| Rooms | `PUT /rooms/{roomId}/status` | Set or release the operational status of a room over a date range. A status cannot cover a night held by a booking. |
 | Rooms | `GET /properties/{propertyId}/status-periods` | List the status periods of the rooms of a property, optionally between `from` and `to`. |
-| Rooms | `GET /properties/{propertyId}/room-availability?startDate=` | Get the status of each room for seven days, optionally filtered by `status`. |
+| Rooms | `GET /properties/{propertyId}/room-availability?startDate=` | Get the status of each room for seven days (booked, occupied, an operational status, or available), optionally filtered by `status`. |
 | Rooms | `GET /properties/{propertyId}/rate-plans` | List the rate plans of a property, with its currency. |
 | Rooms | `POST /properties/{propertyId}/rate-plans` | Create a rate plan. |
 | Rooms | `GET /rate-plans/{ratePlanId}` | Get a rate plan. |
 | Rooms | `PUT /rate-plans/{ratePlanId}` | Update a rate plan; plans are made inactive instead of deleted. |
 | Rooms | `PUT /rate-plans/{ratePlanId}/daily-rates` | Set the price of a range of nights for a room type, or return them to the base rate. |
 | Rooms | `GET /properties/{propertyId}/daily-rates?startDate=&endDate=` | List the daily rates of a property between two nights. |
+| Bookings | `GET /properties/{propertyId}/bookings` | List the bookings of a property, filtered by `status`, `roomId`, `from`, `to`, and `search`, and optionally paged with `page` and `pageSize` (`X-Total-Count` header). |
+| Bookings | `POST /properties/{propertyId}/bookings` | Create a pending booking; the server assigns its code and total. |
+| Bookings | `GET /bookings/{bookingId}` | Get a booking. |
+| Bookings | `PUT /bookings/{bookingId}` | Update a pending or confirmed booking. |
+| Bookings | `POST /bookings/{bookingId}/check-in` | Check in a confirmed booking with a verified identity document and register its key cards in Access Control, valid until 11:00 on the check-out day. |
+| Bookings | `POST /bookings/{bookingId}/check-out` | Check out a paid booking, end its key cards, and mark the room as needs-cleaning on the departure day. |
+| Bookings | `GET /bookings/{bookingId}/payments` | List the payments of a booking. |
+| Bookings | `POST /bookings/{bookingId}/payments` | Record a payment up to the balance due. Send an `Idempotency-Key` header to make retries safe. |
+| Bookings | `GET /properties/{propertyId}/payments` | List the payments received for the bookings of a property. |
+| Bookings | `POST /bookings/{bookingId}/transitions` | Confirm, cancel, mark as a no-show, or restore a booking. A rejected transition returns the current status and the allowed transitions. |
 | Inventory | `GET`, `POST /properties/{propertyId}/storage-locations` | List and create storage locations. |
 | Inventory | `GET`, `PUT`, `DELETE /storage-locations/{storageLocationId}` | Get, update, and delete a storage location. |
 | Inventory | `GET`, `POST /properties/{propertyId}/inventory-items` | List and create inventory items. |
@@ -69,7 +78,7 @@ All routes start with `/api/v1`.
 | Access Control | `GET /properties/{propertyId}/staff-members` | List the staff members of a property. |
 | Access Control | `GET /properties/{propertyId}/access-events` | List the access events of a property, paginated. |
 | Access Control | `GET /access-events/{accessEventId}`, `POST /access-events` | Get and record access events. |
-| Overview | `GET /properties/{propertyId}/dashboard` | Get the operational dashboard of a property. |
+| Overview | `GET /properties/{propertyId}/dashboard` | Get the operational dashboard of a property, including today's arrivals with their status and balance due. |
 | Overview | `GET /property-overviews` | Compare the properties on a date. |
 
 Scalar lists every endpoint with its request and response resources.
@@ -89,7 +98,7 @@ Scalar lists every endpoint with its request and response resources.
 - .NET SDK 10
 - MySQL 8 running on `localhost:3306`, with a password for the `root` user
 
-### 1) Set the database password
+### 1) Set the database password and time zone
 
 The connection string in `HosteraBackend.API/appsettings.json` reads the password of the MySQL `root` user from the `HOSTERA_DB_PASSWORD` environment variable, so no credential is stored in the repository:
 
@@ -106,6 +115,8 @@ export HOSTERA_DB_PASSWORD='your-mysql-root-password'
 ```
 
 On Windows, define it as a user environment variable. Restart your terminal or IDE afterward.
+
+Rules that depend on the current day, such as when a booking can be checked in, use the time zone in `Hostera:TimeZone` (`America/Lima` by default).
 
 ### 2) Restore and run the API
 
@@ -135,6 +146,21 @@ DROP DATABASE hostera;
 
 This removes the data created through the API.
 
+## Concurrency
+
+Booking responses carry the version of the booking in the `ETag` header and in the `version` field. To make sure a change does not overwrite someone else's, send that ETag back in `If-Match` when updating a booking, changing its status, recording a payment, or checking in or out:
+
+```http
+PUT /api/v1/bookings/12
+If-Match: "4"
+```
+
+When the booking changed after it was read, the API answers `409 Conflict` with the `ConcurrencyConflict` code and keeps the newer data. Requests without `If-Match` skip the check. Payments always increase the version of their booking, so two payments sent at the same time cannot exceed the balance due.
+
+Every save runs in a database transaction, so a request that fails halfway leaves no partial changes.
+
+Browser clients can read the `ETag`, `X-Total-Count`, and `Idempotent-Replayed` response headers.
+
 ## Error responses
 
 Errors use the RFC 9457 problem details format. The `title` holds a stable error code, such as `DuplicateRoomTypeName`, and `detail` explains it:
@@ -150,13 +176,15 @@ Errors use the RFC 9457 problem details format. The `title` holds a stable error
 
 - **400 Bad Request**: a value is missing or not valid.
 - **404 Not Found**: the resource, or the property it belongs to, does not exist.
-- **409 Conflict**: the request breaks a business rule, such as a duplicate name or insufficient stock.
+- **409 Conflict**: the request breaks a business rule, such as a duplicate name or insufficient stock, or the booking changed after it was read.
+- **422 Unprocessable Content**: a payment amount is not valid or exceeds the balance due.
 
 ## Project structure
 
 ```text
 HosteraBackend.API/
   AccessControl/        Access Control bounded context
+  Bookings/             Bookings bounded context
   Inventory/            Inventory Management bounded context
   Overview/             Overview bounded context
   Rooms/                Rooms & Availability bounded context
