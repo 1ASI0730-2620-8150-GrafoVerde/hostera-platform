@@ -40,6 +40,7 @@ using HosteraBackend.API.Shared.Domain.Repositories;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Shared.Infrastructure.Seeding;
 using HosteraBackend.API.Shared.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -94,6 +95,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IClock, PropertyClock>();
+builder.Services.AddScoped<DemoDataSeeder>();
 
 // Inventory Bounded Context
 builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository>();
@@ -159,6 +161,10 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     context.Database.EnsureCreated();
+
+    // A new development database receives a demonstration hotel, unless Hostera:SeedDemoData is false
+    if (app.Environment.IsDevelopment() && app.Configuration.GetValue("Hostera:SeedDemoData", true))
+        await scope.ServiceProvider.GetRequiredService<DemoDataSeeder>().SeedAsync(CancellationToken.None);
 }
 
 // Configure the HTTP request pipeline.
