@@ -53,7 +53,12 @@ builder.Services.AddRouting(options => options.LowercaseUrls = true);
 
 // Configure Kebab-Case route naming convention for controllers
 builder.Services.AddControllers(options =>
-    options.Conventions.Add(new KebabCaseRouteNamingConvention()));
+        options.Conventions.Add(new KebabCaseRouteNamingConvention()))
+    .ConfigureApiBehaviorOptions(options =>
+        options.InvalidModelStateResponseFactory = InvalidModelStateProblemFactory.ToActionResultFromInvalidModelState);
+
+// Add Localization: error messages are described in the language of the Accept-Language header
+builder.Services.AddLocalization();
 
 builder.Services.Configure<RouteOptions>(options =>
 {
@@ -175,6 +180,14 @@ if (app.Environment.IsDevelopment())
 }
 
 // Apply CORS Policy
+// Describe errors in English or Spanish from the Accept-Language header of each request, falling back to English.
+// Only the UI culture changes: numbers and dates are always read in English, so "0.01" stays a valid decimal.
+string[] supportedUiCultures = ["en", "es"];
+app.UseRequestLocalization(new RequestLocalizationOptions()
+    .SetDefaultCulture(supportedUiCultures[0])
+    .AddSupportedCultures(supportedUiCultures[0])
+    .AddSupportedUICultures(supportedUiCultures));
+
 app.UseCors("AllowAllPolicy");
 
 app.UseHttpsRedirection();
