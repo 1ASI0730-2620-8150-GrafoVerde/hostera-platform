@@ -65,7 +65,9 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAllPolicy",
         policy => policy.AllowAnyOrigin()
             .AllowAnyMethod()
-            .AllowAnyHeader());
+            .AllowAnyHeader()
+            // Browser clients can only read the response headers listed here
+            .WithExposedHeaders("ETag", "X-Total-Count", "Idempotent-Replayed"));
 });
 
 // Add Database Connection
