@@ -272,7 +272,7 @@
             }
 
             interface IDailyRateRepository extends IBaseRepository {
-                +FindByPropertyIdAndPeriodAsync(int propertyId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken): Task<IEnumerable<DailyRate>>
+                +FindByPropertyIdAndPeriodAsync(int propertyId, DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken): Task<IEnumerable<DailyRate>>
                 +FindByRatePlanAndRoomTypeAsync(int ratePlanId, int roomTypeId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken): Task<IEnumerable<DailyRate>>
                 +FindByRoomTypeIdAsync(int roomTypeId, CancellationToken cancellationToken): Task<IEnumerable<DailyRate>>
             }
@@ -490,7 +490,7 @@
             }
 
             class PropertyDailyRatesController {
-                +GetDailyRatesByPropertyId(int propertyId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken): Task<IActionResult>
+                +GetDailyRatesByPropertyId(int propertyId, DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken): Task<IActionResult>
             }
 
             class RoomsActionResultAssembler <<static>> {
