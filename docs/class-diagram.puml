@@ -1,10 +1,9 @@
-@startuml Hostera Platform Class Diagram - Rooms, Bookings, Inventory, Access Control facade and Shared Bounded Contexts
+@startuml Hostera Platform Class Diagram - Rooms, Bookings, Inventory, Access Control and Shared Bounded Contexts
 
     title
         Hostera Platform
         Class Diagram
-        Rooms, Bookings, Inventory and Shared Bounded Contexts
-        with the Access Control facade used by Bookings
+        Rooms, Bookings, Inventory, Access Control and Shared Bounded Contexts
     end title
 
     package "Shared Bounded Context" as Shared {
@@ -1387,6 +1386,284 @@
     }
 
     package "Access Control Bounded Context" as AccessControl {
+        package "Domain" as AccessControlDomain {
+            class Credential <<Aggregate>> implements IAuditableEntity {
+                +Credential(IssueGuestKeyCardsCommand command, CardId cardId)
+                +Credential(IssueStaffCredentialCommand command, StaffMember staffMember)
+                +Id: int
+                +PropertyId: int
+                +CardId: CardId
+                +Type: ECredentialType
+                +HolderName: string
+                +BookingId: int?
+                +BookingCode: string?
+                +RoomId: int?
+                +StaffMemberId: int?
+                +Scope: EAccessScope?
+                +ValidityPeriod: ValidityPeriod
+                +IssuedAt: DateTimeOffset
+                +IssuedBy: int
+                +Revocation: Revocation?
+                +StatusAt(DateTimeOffset moment): ECredentialStatus
+                +IsUsableAt(DateTimeOffset moment): bool
+                +Revoke(ERevocationReason reason, string? note, int operatorId): void
+                +ReplaceWith(CardId cardId, int operatorId): Credential
+                +EndAt(DateTimeOffset moment): void
+            }
+
+            class StaffMember <<Aggregate>> {
+                +Id: int
+                +PropertyId: int
+                +Name: string
+                +Role: string
+            }
+
+            class AccessEvent <<Aggregate>> implements IAuditableEntity {
+                +AccessEvent(RecordAccessEventCommand command, Credential credential)
+                +Id: int
+                +PropertyId: int
+                +CredentialId: int?
+                +CardId: CardId
+                +HolderType: EHolderType
+                +HolderName: string
+                +RoomId: int?
+                +AccessPoint: EAccessPoint
+                +Result: EAccessResult
+                +DenialReason: EDenialReason?
+                +OccurredAt: DateTimeOffset
+            }
+
+            class CardId <<ValueObject>> <<record>> {
+                +CardId(string value)
+                +Value: string
+                +ToString(): string
+            }
+
+            class ValidityPeriod <<ValueObject>> <<record>> {
+                +ValidityPeriod(DateTimeOffset validFrom, DateTimeOffset? validUntil)
+                +ValidFrom: DateTimeOffset
+                +ValidUntil: DateTimeOffset?
+                +EndingAt(DateTimeOffset moment): ValidityPeriod
+            }
+
+            class Revocation <<ValueObject>> <<record>> {
+                +Revocation(ERevocationReason reason, string? note, DateTimeOffset at, int operatorId)
+                +Reason: ERevocationReason
+                +Note: string
+                +At: DateTimeOffset
+                +OperatorId: int
+            }
+
+            enum ECredentialType <<ValueObject>> {
+                GuestKeyCard
+                StaffCredential
+            }
+
+            enum ECredentialStatus <<ValueObject>> {
+                Scheduled
+                Active
+                Expired
+                Revoked
+            }
+
+            enum EAccessScope <<ValueObject>> {
+                ServiceAreas
+                AllRooms
+                AllAreas
+            }
+
+            enum ERevocationReason <<ValueObject>> {
+                LostCard
+                DamagedCard
+                SecurityRisk
+                StaffLeft
+                Replaced
+                Other
+            }
+
+            enum EHolderType <<ValueObject>> {
+                Guest
+                Staff
+            }
+
+            enum EAccessPoint <<ValueObject>> {
+                MainEntrance
+                RoomDoor
+                Elevator
+                ServiceCorridor
+                StorageRoom
+            }
+
+            enum EAccessResult <<ValueObject>> {
+                Granted
+                Denied
+            }
+
+            enum EDenialReason <<ValueObject>> {
+                OutsideScope
+                NotActiveYet
+                Expired
+                Revoked
+            }
+
+            class IssueGuestKeyCardsCommand <<record>> {
+                +PropertyId: int
+                +BookingId: int
+                +BookingCode: string
+                +RoomId: int
+                +HolderName: string
+                +ValidityPeriod: ValidityPeriod
+                +CardIds: IReadOnlyList<CardId>
+                +IssuedBy: int
+            }
+
+            class EndGuestKeyCardsCommand <<record>> {
+                +BookingId: int
+                +EndAt: DateTimeOffset
+            }
+
+            class IssueStaffCredentialCommand <<record>> {
+                +PropertyId: int
+                +StaffMemberId: int
+                +Scope: EAccessScope
+                +ValidityPeriod: ValidityPeriod
+                +CardId: CardId
+                +IssuedBy: int
+            }
+
+            class ReplaceCredentialCommand <<record>> {
+                +CredentialId: int
+                +CardId: CardId
+                +OperatorId: int
+            }
+
+            class RevokeCredentialCommand <<record>> {
+                +CredentialId: int
+                +Reason: ERevocationReason
+                +Note: string?
+                +OperatorId: int
+            }
+
+            class RecordAccessEventCommand <<record>> {
+                +PropertyId: int
+                +CardId: CardId
+                +AccessPoint: EAccessPoint
+                +RoomId: int?
+                +OccurredAt: DateTimeOffset
+            }
+
+            class GetAllAccessEventsByPropertyIdQuery <<record>> {
+                +PropertyId: int
+                +From: DateTimeOffset?
+                +To: DateTimeOffset?
+                +Result: EAccessResult?
+                +HolderName: string?
+                +CredentialId: int?
+                +CardId: CardId?
+                +AccessPoint: EAccessPoint?
+                +RoomId: int?
+                +Page: int
+                +PageSize: int
+            }
+
+            interface ICredentialRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<Credential>>
+                +FindByPropertyIdAndCardIdAsync(int propertyId, CardId cardId, CancellationToken cancellationToken): Task<IEnumerable<Credential>>
+                +FindByStaffMemberIdAsync(int staffMemberId, CancellationToken cancellationToken): Task<IEnumerable<Credential>>
+                +FindByBookingIdAsync(int bookingId, CancellationToken cancellationToken): Task<IEnumerable<Credential>>
+            }
+
+            interface IStaffMemberRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<StaffMember>>
+            }
+
+            interface IAccessEventRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(GetAllAccessEventsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<AccessEvent>>
+                +CountByPropertyIdAsync(GetAllAccessEventsByPropertyIdQuery query, CancellationToken cancellationToken): Task<int>
+            }
+        }
+
+        package "Application" as AccessControlApplication {
+            enum CredentialError {
+                InvalidInput
+                CredentialNotFound
+                StaffMemberNotFound
+                StaffCredentialExists
+                DuplicateCardId
+                CredentialNotUsable
+            }
+
+            enum AccessEventError {
+                InvalidInput
+                AccessPointNotRegistered
+                CredentialNotFound
+                AccessEventNotFound
+            }
+
+            class AccessEventPage <<record>> {
+                +AccessEvents: IEnumerable<AccessEvent>
+                +Page: int
+                +PageSize: int
+                +TotalCount: int
+            }
+
+            interface ICredentialCommandService {
+                +Handle(IssueGuestKeyCardsCommand command, CancellationToken cancellationToken): Task<Result<IEnumerable<Credential>, CredentialError>>
+                +Handle(IssueStaffCredentialCommand command, CancellationToken cancellationToken): Task<Result<Credential, CredentialError>>
+                +Handle(ReplaceCredentialCommand command, CancellationToken cancellationToken): Task<Result<Credential, CredentialError>>
+                +Handle(RevokeCredentialCommand command, CancellationToken cancellationToken): Task<Result<Credential, CredentialError>>
+                +Handle(EndGuestKeyCardsCommand command, CancellationToken cancellationToken): Task<Result<IEnumerable<Credential>, CredentialError>>
+            }
+
+            interface ICredentialQueryService {
+                +Handle(GetAllCredentialsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<Credential>>
+                +Handle(GetCredentialByIdQuery query, CancellationToken cancellationToken): Task<Credential?>
+            }
+
+            interface IStaffMemberQueryService {
+                +Handle(GetAllStaffMembersByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<StaffMember>>
+            }
+
+            interface IAccessEventCommandService {
+                +Handle(RecordAccessEventCommand command, CancellationToken cancellationToken): Task<Result<AccessEvent, AccessEventError>>
+            }
+
+            interface IAccessEventQueryService {
+                +Handle(GetAllAccessEventsByPropertyIdQuery query, CancellationToken cancellationToken): Task<AccessEventPage>
+                +Handle(GetAccessEventByIdQuery query, CancellationToken cancellationToken): Task<AccessEvent?>
+            }
+
+            class CredentialCommandService implements ICredentialCommandService {
+                +CredentialCommandService(ICredentialRepository credentialRepository, IStaffMemberRepository staffMemberRepository, IUnitOfWork unitOfWork)
+            }
+
+            class CredentialQueryService implements ICredentialQueryService {
+                +CredentialQueryService(ICredentialRepository credentialRepository)
+            }
+
+            class StaffMemberQueryService implements IStaffMemberQueryService {
+                +StaffMemberQueryService(IStaffMemberRepository staffMemberRepository)
+            }
+
+            class AccessEventCommandService implements IAccessEventCommandService {
+                +AccessEventCommandService(IAccessEventRepository accessEventRepository, ICredentialRepository credentialRepository, IUnitOfWork unitOfWork)
+            }
+
+            class AccessEventQueryService implements IAccessEventQueryService {
+                +AccessEventQueryService(IAccessEventRepository accessEventRepository)
+            }
+
+            class AccessControlContextFacade implements IAccessControlContextFacade {
+                +AccessControlContextFacade(ICredentialCommandService credentialCommandService)
+            }
+        }
+
+        package "Infrastructure" as AccessControlInfrastructure {
+            class CredentialRepository extends BaseRepository implements ICredentialRepository
+            class StaffMemberRepository extends BaseRepository implements IStaffMemberRepository
+            class AccessEventRepository extends BaseRepository implements IAccessEventRepository
+        }
+
         package "Interfaces.ACL" as AccessControlAcl {
             interface IAccessControlContextFacade {
                 +IssueGuestKeyCardsAsync(int propertyId, int bookingId, string bookingCode, int roomId, string holderName, DateTimeOffset validFrom, DateTimeOffset validUntil, IReadOnlyList<string> cardIds, int issuedBy, CancellationToken cancellationToken): Task<GuestKeyCardsIssue>
@@ -1400,20 +1677,88 @@
             }
         }
 
-        package "Application.ACL" as AccessControlApplicationAcl {
-            class AccessControlContextFacade implements IAccessControlContextFacade {
-                +AccessControlContextFacade(ICredentialCommandService credentialCommandService)
+        package "Interfaces.Rest" as AccessControlRest {
+            class PropertyCredentialsController {
+                +GetCredentialsByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+                +IssueGuestKeyCards(int propertyId, IssueGuestKeyCardsResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +IssueStaffCredential(int propertyId, IssueStaffCredentialResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class CredentialsController {
+                +GetCredentialById(int credentialId, CancellationToken cancellationToken): Task<IActionResult>
+                +ReplaceCredential(int credentialId, ReplaceCredentialResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +RevokeCredential(int credentialId, RevokeCredentialResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyStaffMembersController {
+                +GetStaffMembersByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyAccessEventsController {
+                +GetAccessEventsByPropertyId(int propertyId, DateTimeOffset? from, DateTimeOffset? to, string? result, string? holderName, int? credentialId, string? cardId, string? accessPoint, int? roomId, CancellationToken cancellationToken, int page, int pageSize): Task<IActionResult>
+            }
+
+            class AccessEventsController {
+                +GetAccessEventById(int accessEventId, CancellationToken cancellationToken): Task<IActionResult>
+                +RecordAccessEvent(RecordAccessEventResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class CredentialActionResultAssembler <<static>> {
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, CredentialError> result, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromMissingCredential(ControllerBase controller): IActionResult
+                +ToActionResultFromInvalidResource(ControllerBase controller, ArgumentException exception): IActionResult
+            }
+
+            class AccessEventActionResultAssembler <<static>> {
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, AccessEventError> result, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromMissingAccessEvent(ControllerBase controller): IActionResult
+                +ToActionResultFromUnregisteredAccessPoint(ControllerBase controller): IActionResult
+                +ToActionResultFromInvalidResource(ControllerBase controller, ArgumentException exception): IActionResult
             }
         }
 
-        package "Domain.Model.Commands" as AccessControlCommands {
-            class EndGuestKeyCardsCommand <<record>> {
-                +BookingId: int
-                +EndAt: DateTimeOffset
-            }
-        }
+        StaffMember "1" -- "0..*" Credential : holds >
+        Credential "1" -- "0..*" AccessEvent : is presented in >
+        Credential "1" *-- "1" CardId
+        Credential "1" *-- "1" ValidityPeriod
+        Credential "1" *-- "0..1" Revocation
+        AccessEvent "1" *-- "1" CardId
 
+        Credential ..> ECredentialType
+        Credential ..> ECredentialStatus
+        Credential ..> EAccessScope
+        Revocation ..> ERevocationReason
+        AccessEvent ..> EHolderType
+        AccessEvent ..> EAccessPoint
+        AccessEvent ..> EAccessResult
+        AccessEvent ..> EDenialReason
+        AccessEventPage --> AccessEvent
+
+        CredentialCommandService ..> ICredentialRepository
+        CredentialCommandService ..> IStaffMemberRepository
+        CredentialQueryService ..> ICredentialRepository
+        StaffMemberQueryService ..> IStaffMemberRepository
+        AccessEventCommandService ..> IAccessEventRepository
+        AccessEventCommandService ..> ICredentialRepository
+        AccessEventQueryService ..> IAccessEventRepository
+        AccessEventQueryService ..> AccessEventPage
+        AccessControlContextFacade ..> ICredentialCommandService
+        AccessControlContextFacade ..> IssueGuestKeyCardsCommand
         AccessControlContextFacade ..> EndGuestKeyCardsCommand
+        AccessControlContextFacade ..> GuestKeyCardsIssue
+
+        PropertyCredentialsController ..> ICredentialCommandService
+        PropertyCredentialsController ..> ICredentialQueryService
+        CredentialsController ..> ICredentialCommandService
+        CredentialsController ..> ICredentialQueryService
+        PropertyCredentialsController ..> CredentialActionResultAssembler
+        CredentialsController ..> CredentialActionResultAssembler
+        PropertyStaffMembersController ..> IStaffMemberQueryService
+        PropertyAccessEventsController ..> IAccessEventQueryService
+        AccessEventsController ..> IAccessEventCommandService
+        AccessEventsController ..> IAccessEventQueryService
+        PropertyAccessEventsController ..> AccessEventActionResultAssembler
+        AccessEventsController ..> AccessEventActionResultAssembler
     }
 
 @enduml
