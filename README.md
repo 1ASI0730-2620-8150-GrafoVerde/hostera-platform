@@ -231,6 +231,7 @@ Each bounded context folder contains `Domain/`, `Application/`, `Infrastructure/
 
 - **Technical stories**: [`docs/user-stories.md`](docs/user-stories.md)
 - **PlantUML class diagram**: [`docs/class-diagram.puml`](docs/class-diagram.puml)
+- **Architecture decision records**: [`docs/adrs.md`](docs/adrs.md)
 
 ## Build
 
