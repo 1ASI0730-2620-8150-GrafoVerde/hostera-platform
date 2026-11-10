@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>2.0</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <data name="AccessEventError.AccessPointNotRegistered" xml:space="preserve">
+        <value>El punto de acceso del lector no está registrado.</value>
+    </data>
+    <data name="AccessEventError.CredentialNotFound" xml:space="preserve">
+        <value>Ninguna credencial del establecimiento fue grabada en la tarjeta.</value>
+    </data>
+    <data name="AccessEventError.AccessEventNotFound" xml:space="preserve">
+        <value>No se encontró el evento de acceso indicado.</value>
+    </data>
+    <data name="AccessEventError.InvalidInput" xml:space="preserve">
+        <value>Uno o más valores no son válidos.</value>
+    </data>
+    <data name="CredentialError.CredentialNotFound" xml:space="preserve">
+        <value>No se encontró la credencial indicada.</value>
+    </data>
+    <data name="CredentialError.StaffMemberNotFound" xml:space="preserve">
+        <value>No se encontró al miembro del personal indicado en el establecimiento.</value>
+    </data>
+    <data name="CredentialError.StaffCredentialExists" xml:space="preserve">
+        <value>El miembro del personal ya tiene una credencial utilizable.</value>
+    </data>
+    <data name="CredentialError.DuplicateCardId" xml:space="preserve">
+        <value>Una credencial utilizable del establecimiento ya usa la tarjeta.</value>
+    </data>
+    <data name="CredentialError.CredentialNotUsable" xml:space="preserve">
+        <value>La credencial está vencida o revocada.</value>
+    </data>
+    <data name="CredentialError.InvalidInput" xml:space="preserve">
+        <value>Uno o más valores no son válidos.</value>
+    </data>
+</root>

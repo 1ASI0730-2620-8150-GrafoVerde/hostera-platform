@@ -1,6 +1,8 @@
 using HosteraBackend.API.AccessControl.Application.Errors;
 using HosteraBackend.API.Shared.Application.Patterns;
+using HosteraBackend.API.AccessControl.Resources;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace HosteraBackend.API.AccessControl.Interfaces.Rest.Transform;
 
@@ -20,15 +22,11 @@ public static class CredentialActionResultAssembler
         _ => StatusCodes.Status400BadRequest
     };
 
-    private static string ToMessageFromCredentialError(CredentialError error) => error switch
+    private static string ToMessageFromCredentialError(ControllerBase controller, CredentialError error)
     {
-        CredentialError.CredentialNotFound => "The specified credential was not found.",
-        CredentialError.StaffMemberNotFound => "The specified staff member was not found in the property.",
-        CredentialError.StaffCredentialExists => "The staff member already holds a usable credential.",
-        CredentialError.DuplicateCardId => "A usable credential of the property already uses the card.",
-        CredentialError.CredentialNotUsable => "The credential is expired or revoked.",
-        _ => "One or more values are not valid."
-    };
+        var localizer = controller.HttpContext.RequestServices.GetRequiredService<IStringLocalizer<AccessControlMessages>>();
+        return localizer[$"{nameof(CredentialError)}.{error}"];
+    }
 
     /// <summary>
     ///     Returns the success action, or a problem details response when the result is a failure.
@@ -75,6 +73,6 @@ public static class CredentialActionResultAssembler
         return controller.Problem(
             statusCode: ToStatusCodeFromCredentialError(error),
             title: error.ToString(),
-            detail: ToMessageFromCredentialError(error));
+            detail: ToMessageFromCredentialError(controller, error));
     }
 }

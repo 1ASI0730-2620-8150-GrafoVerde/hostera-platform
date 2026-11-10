@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>2.0</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <data name="AccessEventError.AccessPointNotRegistered" xml:space="preserve">
+        <value>The access point of the reader is not registered.</value>
+    </data>
+    <data name="AccessEventError.CredentialNotFound" xml:space="preserve">
+        <value>No credential of the property was written to the card.</value>
+    </data>
+    <data name="AccessEventError.AccessEventNotFound" xml:space="preserve">
+        <value>The specified access event was not found.</value>
+    </data>
+    <data name="AccessEventError.InvalidInput" xml:space="preserve">
+        <value>One or more values are not valid.</value>
+    </data>
+    <data name="CredentialError.CredentialNotFound" xml:space="preserve">
+        <value>The specified credential was not found.</value>
+    </data>
+    <data name="CredentialError.StaffMemberNotFound" xml:space="preserve">
+        <value>The specified staff member was not found in the property.</value>
+    </data>
+    <data name="CredentialError.StaffCredentialExists" xml:space="preserve">
+        <value>The staff member already holds a usable credential.</value>
+    </data>
+    <data name="CredentialError.DuplicateCardId" xml:space="preserve">
+        <value>A usable credential of the property already uses the card.</value>
+    </data>
+    <data name="CredentialError.CredentialNotUsable" xml:space="preserve">
+        <value>The credential is expired or revoked.</value>
+    </data>
+    <data name="CredentialError.InvalidInput" xml:space="preserve">
+        <value>One or more values are not valid.</value>
+    </data>
+</root>
