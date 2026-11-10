@@ -2,7 +2,9 @@ using HosteraBackend.API.Bookings.Application.Errors;
 using HosteraBackend.API.Bookings.Domain.Model.Aggregates;
 using HosteraBackend.API.Bookings.Domain.Model.ValueObjects;
 using HosteraBackend.API.Shared.Application.Patterns;
+using HosteraBackend.API.Bookings.Resources;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace HosteraBackend.API.Bookings.Interfaces.Rest.Transform;
 
@@ -33,42 +35,11 @@ public static class BookingsActionResultAssembler
         _ => StatusCodes.Status400BadRequest
     };
 
-    private static string ToMessageFromBookingError(BookingError error) => error switch
+    private static string ToMessageFromBookingError(ControllerBase controller, BookingError error)
     {
-        BookingError.InvalidInput => "One or more values are not valid.",
-        BookingError.InvalidStayDates =>
-            "The check-out day must be after the check-in day, and a stay covers at most 365 nights.",
-        BookingError.BookingNotFound => "The specified booking was not found.",
-        BookingError.RoomNotFound => "The room does not exist in the property of the booking.",
-        BookingError.RoomTypeNotFound => "The room type does not exist in the property of the booking.",
-        BookingError.RatePlanNotFound => "The rate plan does not exist in the property of the booking.",
-        BookingError.RoomNotInRoomType => "The room does not belong to the booked room type.",
-        BookingError.InactiveRoomType => "The room type is inactive, so new bookings cannot use it.",
-        BookingError.InactiveRatePlan => "The rate plan is inactive, so new bookings cannot use it.",
-        BookingError.RatePlanNotForRoomType => "The rate plan does not sell the booked room type.",
-        BookingError.OverCapacity => "The number of guests exceeds the capacity of the room type.",
-        BookingError.RoomUnavailable =>
-            "Another booking holds the room, or a Blocked or Out of service status covers it, on a night of the stay.",
-        BookingError.NotEditable => "Only pending or confirmed bookings can be edited.",
-        BookingError.InvalidStatusChange => "The booking cannot move from its current status to the requested one today.",
-        BookingError.CancellationReasonRequired => "A cancellation needs a reason.",
-        BookingError.CancellationNoteRequired => "The other cancellation reason needs a note.",
-        BookingError.PaymentsNotAccepted => "Only pending, confirmed or checked-in bookings accept payments.",
-        BookingError.InvalidPaymentAmount => "The payment amount must be positive and have at most two decimals.",
-        BookingError.PaymentExceedsBalance => "The payment amount exceeds the balance due of the booking.",
-        BookingError.InvalidPaymentDate => "A payment cannot be received in the future.",
-        BookingError.IdempotencyKeyReused =>
-            "The idempotency key was already used for a different payment of the booking.",
-        BookingError.IdentityNotVerified =>
-            "The check-in needs a verified identity document with its type and number.",
-        BookingError.KeyCardRequired => "The check-in needs at least one key card encoded for the guest.",
-        BookingError.KeyCardsNotIssued =>
-            "The key cards were not issued: a card is not valid or is already in use by another credential.",
-        BookingError.BalanceDue => "The booking still owes part of its total, so it cannot be checked out.",
-        BookingError.ConcurrencyConflict =>
-            "The booking changed after it was read. Read it again and repeat the change with its new ETag.",
-        _ => "An unexpected error occurred."
-    };
+        var localizer = controller.HttpContext.RequestServices.GetRequiredService<IStringLocalizer<BookingsMessages>>();
+        return localizer[$"{nameof(BookingError)}.{error}"];
+    }
 
     /// <summary>
     ///     Returns the success action, or a problem details response when the result is a failure.
@@ -133,7 +104,7 @@ public static class BookingsActionResultAssembler
             controller.HttpContext,
             StatusCodes.Status409Conflict,
             nameof(BookingError.InvalidStatusChange),
-            detail: ToMessageFromBookingError(BookingError.InvalidStatusChange));
+            detail: ToMessageFromBookingError(controller, BookingError.InvalidStatusChange));
         problem.Extensions["currentStatus"] = BookingsEnumNames.ToName(booking.Status);
         problem.Extensions["allowedTransitions"] = allowedTransitions.Select(BookingsEnumNames.ToName).ToList();
         return new ObjectResult(problem) { StatusCode = StatusCodes.Status409Conflict };
@@ -144,6 +115,6 @@ public static class BookingsActionResultAssembler
         return controller.Problem(
             statusCode: ToStatusCodeFromBookingError(error),
             title: error.ToString(),
-            detail: ToMessageFromBookingError(error));
+            detail: ToMessageFromBookingError(controller, error));
     }
 }
