@@ -167,13 +167,14 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     context.Database.EnsureCreated();
 
-    // A new development database receives a demonstration hotel, unless Hostera:SeedDemoData is false
-    if (app.Environment.IsDevelopment() && app.Configuration.GetValue("Hostera:SeedDemoData", true))
+    // A new database receives a demonstration hotel when Hostera:SeedDemoData is true, the default in Development
+    if (app.Configuration.GetValue("Hostera:SeedDemoData", app.Environment.IsDevelopment()))
         await scope.ServiceProvider.GetRequiredService<DemoDataSeeder>().SeedAsync(CancellationToken.None);
 }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Publish the OpenAPI document and the Scalar reference when Hostera:PublishApiReference is true, the default in
+// Development
+if (app.Configuration.GetValue("Hostera:PublishApiReference", app.Environment.IsDevelopment()))
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
