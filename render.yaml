@@ -1,0 +1,23 @@
+# Render Blueprint of the Hostera Platform API.
+# The MySQL database is hosted outside Render; set its connection string in the dashboard when the Blueprint is applied.
+services:
+  - type: web
+    name: hostera-platform
+    runtime: docker
+    plan: free
+    region: virginia
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/properties
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: PORT
+        value: "8080"
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Hostera__SeedDemoData
+        value: "true"
+      - key: Hostera__PublishApiReference
+        value: "true"

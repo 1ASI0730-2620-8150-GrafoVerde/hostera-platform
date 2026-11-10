@@ -1,10 +1,9 @@
-@startuml Hostera Platform Class Diagram - Rooms, Bookings, Access Control facade and Shared Bounded Contexts
+@startuml Hostera Platform Class Diagram
 
     title
         Hostera Platform
         Class Diagram
-        Rooms, Bookings and Shared Bounded Contexts
-        with the Access Control facade used by Bookings
+        Rooms, Bookings, Inventory, Access Control, Overview and Shared Bounded Contexts
     end title
 
     package "Shared Bounded Context" as Shared {
@@ -1058,7 +1057,613 @@
         BookingPaymentsController ..> BookingETag
     }
 
+    package "Inventory Bounded Context" as Inventory {
+        package "Domain" as InventoryDomain {
+            class InventoryItem <<Aggregate>> implements IAuditableEntity {
+                +InventoryItem(CreateInventoryItemCommand command)
+                +Id: int
+                +PropertyId: int
+                +Code: InventoryCode
+                +Name: string
+                +Category: EInventoryCategory
+                +Unit: EInventoryUnit
+                +PrimaryLocationId: int
+                +LowStockThreshold: decimal
+                +Stocks: IReadOnlyCollection<InventoryStock>
+                +Adjustments: IReadOnlyCollection<StockAdjustment>
+                +TotalQuantity: decimal
+                +StockCondition: EStockCondition
+                +QuantityAt(int storageLocationId): decimal
+                +Update(UpdateInventoryItemCommand command): void
+                +IsAssignedTo(int storageLocationId): bool
+                +UnassignStorageLocation(UnassignStorageLocationCommand command): void
+                +AdjustStock(AdjustStockCommand command, DateTimeOffset recordedAt): IReadOnlyList<StockAdjustment>
+            }
+
+            class InventoryStock <<Entity>> {
+                +InventoryStock(int storageLocationId)
+                +Id: int
+                +InventoryItemId: int
+                +StorageLocationId: int
+                +Quantity: decimal
+            }
+
+            class StockAdjustment <<Entity>> {
+                +Id: int
+                +InventoryItemId: int
+                +Operation: EStockOperation
+                +QuantityChange: decimal
+                +StorageLocationId: int
+                +Reason: EStockAdjustmentReason
+                +Note: string?
+                +Operator: string
+                +RecordedAt: DateTimeOffset
+                +TransferId: Guid?
+            }
+
+            class StorageLocation <<Aggregate>> implements IAuditableEntity {
+                +StorageLocation(CreateStorageLocationCommand command)
+                +Id: int
+                +PropertyId: int
+                +Code: InventoryCode
+                +Name: string
+                +Type: EStorageLocationType
+                +Area: string
+                +ResponsibleTeam: string
+                +Description: string?
+                +Update(UpdateStorageLocationCommand command): void
+            }
+
+            class InventoryCode <<ValueObject>> <<record>> {
+                +InventoryCode(string value)
+                +Value: string
+                +ToString(): string
+            }
+
+            class StockQuantity <<ValueObject>> <<record>> {
+                +StockQuantity(decimal value, EInventoryUnit unit)
+                +Value: decimal
+                +ToString(): string
+            }
+
+            enum EInventoryCategory <<ValueObject>> {
+                Linen
+                GuestAmenities
+                CleaningSupplies
+                AccessSupplies
+            }
+
+            enum EInventoryUnit <<ValueObject>> {
+                Units
+                Liters
+                Kilograms
+            }
+
+            enum EStockCondition <<ValueObject>> {
+                InStock
+                LowStock
+                OutOfStock
+            }
+
+            enum EStockOperation <<ValueObject>> {
+                In
+                Out
+                Transfer
+            }
+
+            enum EStockAdjustmentReason <<ValueObject>> {
+                OpeningStock
+                SupplierDelivery
+                ReturnToStorage
+                InventoryCorrection
+                OperationalConsumption
+                DamagedOrExpired
+                LostItem
+                InternalTransfer
+                Other
+            }
+
+            class StockAdjustmentReasonExtensions <<static>> {
+                +IsValidFor(EStockAdjustmentReason reason, EStockOperation operation): bool
+            }
+
+            enum EStorageLocationType <<ValueObject>> {
+                Warehouse
+                Closet
+                FrontDesk
+                ServiceArea
+            }
+
+            class CreateInventoryItemCommand <<record>> {
+                +PropertyId: int
+                +Code: InventoryCode
+                +Name: string
+                +Category: EInventoryCategory
+                +Unit: EInventoryUnit
+                +PrimaryLocationId: int
+                +LowStockThreshold: decimal
+                +OpeningQuantity: decimal = 0
+                +Operator: string? = null
+            }
+
+            class UpdateInventoryItemCommand <<record>> {
+                +InventoryItemId: int
+                +Name: string
+                +Category: EInventoryCategory
+                +Unit: EInventoryUnit
+                +PrimaryLocationId: int
+                +LowStockThreshold: decimal
+            }
+
+            class AdjustStockCommand <<record>> {
+                +InventoryItemId: int
+                +Operation: EStockOperation
+                +Quantity: decimal
+                +StorageLocationId: int
+                +DestinationStorageLocationId: int?
+                +Reason: EStockAdjustmentReason
+                +Note: string?
+                +Operator: string
+            }
+
+            class UnassignStorageLocationCommand <<record>> {
+                +InventoryItemId: int
+                +StorageLocationId: int
+            }
+
+            class CreateStorageLocationCommand <<record>> {
+                +PropertyId: int
+                +Code: InventoryCode
+                +Name: string
+                +Type: EStorageLocationType
+                +Area: string
+                +ResponsibleTeam: string
+                +Description: string?
+            }
+
+            class UpdateStorageLocationCommand <<record>> {
+                +StorageLocationId: int
+                +Name: string
+                +Type: EStorageLocationType
+                +Area: string
+                +ResponsibleTeam: string
+                +Description: string?
+            }
+
+            class DeleteStorageLocationCommand <<record>> {
+                +StorageLocationId: int
+            }
+
+            interface IInventoryItemRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<InventoryItem>>
+                +ExistsByPropertyIdAndCodeAsync(int propertyId, InventoryCode code, CancellationToken cancellationToken): Task<bool>
+                +ExistsByStorageLocationIdAsync(int storageLocationId, CancellationToken cancellationToken): Task<bool>
+            }
+
+            interface IStorageLocationRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<StorageLocation>>
+                +ExistsByPropertyIdAndCodeAsync(int propertyId, InventoryCode code, CancellationToken cancellationToken): Task<bool>
+            }
+        }
+
+        package "Application" as InventoryApplication {
+            enum InventoryError {
+                InvalidInput
+                StorageLocationNotFound
+                InventoryItemNotFound
+                StorageLocationFromAnotherProperty
+                DuplicateStorageLocationCode
+                DuplicateInventoryItemCode
+                StorageLocationInUse
+                StorageLocationNotAssigned
+                StorageLocationAssignmentInUse
+                UnitChangeNotAllowed
+                InvalidAdjustmentReason
+                InsufficientStock
+                UnexpectedError
+            }
+
+            interface IInventoryItemCommandService {
+                +Handle(CreateInventoryItemCommand command, CancellationToken cancellationToken): Task<Result<InventoryItem, InventoryError>>
+                +Handle(UpdateInventoryItemCommand command, CancellationToken cancellationToken): Task<Result<InventoryItem, InventoryError>>
+                +Handle(AdjustStockCommand command, CancellationToken cancellationToken): Task<Result<InventoryItem, InventoryError>>
+                +Handle(UnassignStorageLocationCommand command, CancellationToken cancellationToken): Task<Result<InventoryItem, InventoryError>>
+            }
+
+            interface IInventoryItemQueryService {
+                +Handle(GetAllInventoryItemsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<InventoryItem>>
+                +Handle(GetInventoryItemByIdQuery query, CancellationToken cancellationToken): Task<InventoryItem?>
+            }
+
+            interface IStorageLocationCommandService {
+                +Handle(CreateStorageLocationCommand command, CancellationToken cancellationToken): Task<Result<StorageLocation, InventoryError>>
+                +Handle(UpdateStorageLocationCommand command, CancellationToken cancellationToken): Task<Result<StorageLocation, InventoryError>>
+                +Handle(DeleteStorageLocationCommand command, CancellationToken cancellationToken): Task<Result<StorageLocation, InventoryError>>
+            }
+
+            interface IStorageLocationQueryService {
+                +Handle(GetAllStorageLocationsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<StorageLocation>>
+                +Handle(GetStorageLocationByIdQuery query, CancellationToken cancellationToken): Task<StorageLocation?>
+            }
+
+            class InventoryItemCommandService implements IInventoryItemCommandService {
+                +InventoryItemCommandService(IInventoryItemRepository inventoryItemRepository, IStorageLocationRepository storageLocationRepository, IUnitOfWork unitOfWork)
+            }
+
+            class InventoryItemQueryService implements IInventoryItemQueryService {
+                +InventoryItemQueryService(IInventoryItemRepository inventoryItemRepository)
+            }
+
+            class StorageLocationCommandService implements IStorageLocationCommandService {
+                +StorageLocationCommandService(IStorageLocationRepository storageLocationRepository, IInventoryItemRepository inventoryItemRepository, IUnitOfWork unitOfWork)
+            }
+
+            class StorageLocationQueryService implements IStorageLocationQueryService {
+                +StorageLocationQueryService(IStorageLocationRepository storageLocationRepository)
+            }
+        }
+
+        package "Infrastructure" as InventoryInfrastructure {
+            class InventoryItemRepository extends BaseRepository implements IInventoryItemRepository
+            class StorageLocationRepository extends BaseRepository implements IStorageLocationRepository
+        }
+
+        package "Interfaces.Rest" as InventoryRest {
+            class PropertyInventoryItemsController {
+                +GetInventoryItemsByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+                +CreateInventoryItem(int propertyId, CreateInventoryItemResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class InventoryItemsController {
+                +GetInventoryItemById(int inventoryItemId, CancellationToken cancellationToken): Task<IActionResult>
+                +UpdateInventoryItem(int inventoryItemId, UpdateInventoryItemResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +AdjustStock(int inventoryItemId, AdjustStockResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +UnassignStorageLocation(int inventoryItemId, int storageLocationId, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyStorageLocationsController {
+                +GetStorageLocationsByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+                +CreateStorageLocation(int propertyId, CreateStorageLocationResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class StorageLocationsController {
+                +GetStorageLocationById(int storageLocationId, CancellationToken cancellationToken): Task<IActionResult>
+                +UpdateStorageLocation(int storageLocationId, UpdateStorageLocationResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +DeleteStorageLocation(int storageLocationId, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class InventoryEnumNames <<static>> {
+                +ToName<TEnum>(TEnum value): string
+                +Parse<TEnum>(string? name, string field): TEnum
+            }
+
+            class InventoryActionResultAssembler <<static>> {
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, InventoryError> result, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromQueryResult<TValue>(ControllerBase controller, TValue? value, InventoryError notFoundError, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromInvalidResource(ControllerBase controller, ArgumentException exception): IActionResult
+            }
+        }
+
+        InventoryItem "1" *-- "1..*" InventoryStock : stocks >
+        InventoryItem "1" *-- "0..*" StockAdjustment : adjustments >
+        InventoryItem *-- InventoryCode
+        StorageLocation *-- InventoryCode
+        InventoryItem "0..*" --> "1" StorageLocation : primary location >
+        InventoryStock "0..*" --> "1" StorageLocation
+        StockAdjustment "0..*" --> "1" StorageLocation
+        InventoryItem ..> StockQuantity
+        InventoryItem ..> EInventoryCategory
+        InventoryItem ..> EInventoryUnit
+        InventoryItem ..> EStockCondition
+        InventoryItem ..> StockAdjustmentReasonExtensions
+        StockQuantity ..> EInventoryUnit
+        StockAdjustment ..> EStockOperation
+        StockAdjustment ..> EStockAdjustmentReason
+        StockAdjustmentReasonExtensions ..> EStockAdjustmentReason
+        StockAdjustmentReasonExtensions ..> EStockOperation
+        StorageLocation ..> EStorageLocationType
+
+        InventoryItemCommandService ..> IInventoryItemRepository
+        InventoryItemCommandService ..> IStorageLocationRepository
+        InventoryItemQueryService ..> IInventoryItemRepository
+        StorageLocationCommandService ..> IStorageLocationRepository
+        StorageLocationCommandService ..> IInventoryItemRepository
+        StorageLocationQueryService ..> IStorageLocationRepository
+
+        PropertyInventoryItemsController ..> IInventoryItemCommandService
+        PropertyInventoryItemsController ..> IInventoryItemQueryService
+        InventoryItemsController ..> IInventoryItemCommandService
+        InventoryItemsController ..> IInventoryItemQueryService
+        PropertyStorageLocationsController ..> IStorageLocationCommandService
+        PropertyStorageLocationsController ..> IStorageLocationQueryService
+        StorageLocationsController ..> IStorageLocationCommandService
+        StorageLocationsController ..> IStorageLocationQueryService
+        PropertyInventoryItemsController ..> InventoryActionResultAssembler
+        InventoryItemsController ..> InventoryActionResultAssembler
+        PropertyStorageLocationsController ..> InventoryActionResultAssembler
+        StorageLocationsController ..> InventoryActionResultAssembler
+        InventoryActionResultAssembler ..> InventoryError
+    }
+
     package "Access Control Bounded Context" as AccessControl {
+        package "Domain" as AccessControlDomain {
+            class Credential <<Aggregate>> implements IAuditableEntity {
+                +Credential(IssueGuestKeyCardsCommand command, CardId cardId)
+                +Credential(IssueStaffCredentialCommand command, StaffMember staffMember)
+                +Id: int
+                +PropertyId: int
+                +CardId: CardId
+                +Type: ECredentialType
+                +HolderName: string
+                +BookingId: int?
+                +BookingCode: string?
+                +RoomId: int?
+                +StaffMemberId: int?
+                +Scope: EAccessScope?
+                +ValidityPeriod: ValidityPeriod
+                +IssuedAt: DateTimeOffset
+                +IssuedBy: int
+                +Revocation: Revocation?
+                +StatusAt(DateTimeOffset moment): ECredentialStatus
+                +IsUsableAt(DateTimeOffset moment): bool
+                +Revoke(ERevocationReason reason, string? note, int operatorId): void
+                +ReplaceWith(CardId cardId, int operatorId): Credential
+                +EndAt(DateTimeOffset moment): void
+            }
+
+            class StaffMember <<Aggregate>> {
+                +Id: int
+                +PropertyId: int
+                +Name: string
+                +Role: string
+            }
+
+            class AccessEvent <<Aggregate>> implements IAuditableEntity {
+                +AccessEvent(RecordAccessEventCommand command, Credential credential)
+                +Id: int
+                +PropertyId: int
+                +CredentialId: int?
+                +CardId: CardId
+                +HolderType: EHolderType
+                +HolderName: string
+                +RoomId: int?
+                +AccessPoint: EAccessPoint
+                +Result: EAccessResult
+                +DenialReason: EDenialReason?
+                +OccurredAt: DateTimeOffset
+            }
+
+            class CardId <<ValueObject>> <<record>> {
+                +CardId(string value)
+                +Value: string
+                +ToString(): string
+            }
+
+            class ValidityPeriod <<ValueObject>> <<record>> {
+                +ValidityPeriod(DateTimeOffset validFrom, DateTimeOffset? validUntil)
+                +ValidFrom: DateTimeOffset
+                +ValidUntil: DateTimeOffset?
+                +EndingAt(DateTimeOffset moment): ValidityPeriod
+            }
+
+            class Revocation <<ValueObject>> <<record>> {
+                +Revocation(ERevocationReason reason, string? note, DateTimeOffset at, int operatorId)
+                +Reason: ERevocationReason
+                +Note: string
+                +At: DateTimeOffset
+                +OperatorId: int
+            }
+
+            enum ECredentialType <<ValueObject>> {
+                GuestKeyCard
+                StaffCredential
+            }
+
+            enum ECredentialStatus <<ValueObject>> {
+                Scheduled
+                Active
+                Expired
+                Revoked
+            }
+
+            enum EAccessScope <<ValueObject>> {
+                ServiceAreas
+                AllRooms
+                AllAreas
+            }
+
+            enum ERevocationReason <<ValueObject>> {
+                LostCard
+                DamagedCard
+                SecurityRisk
+                StaffLeft
+                Replaced
+                Other
+            }
+
+            enum EHolderType <<ValueObject>> {
+                Guest
+                Staff
+            }
+
+            enum EAccessPoint <<ValueObject>> {
+                MainEntrance
+                RoomDoor
+                Elevator
+                ServiceCorridor
+                StorageRoom
+            }
+
+            enum EAccessResult <<ValueObject>> {
+                Granted
+                Denied
+            }
+
+            enum EDenialReason <<ValueObject>> {
+                OutsideScope
+                NotActiveYet
+                Expired
+                Revoked
+            }
+
+            class IssueGuestKeyCardsCommand <<record>> {
+                +PropertyId: int
+                +BookingId: int
+                +BookingCode: string
+                +RoomId: int
+                +HolderName: string
+                +ValidityPeriod: ValidityPeriod
+                +CardIds: IReadOnlyList<CardId>
+                +IssuedBy: int
+            }
+
+            class EndGuestKeyCardsCommand <<record>> {
+                +BookingId: int
+                +EndAt: DateTimeOffset
+            }
+
+            class IssueStaffCredentialCommand <<record>> {
+                +PropertyId: int
+                +StaffMemberId: int
+                +Scope: EAccessScope
+                +ValidityPeriod: ValidityPeriod
+                +CardId: CardId
+                +IssuedBy: int
+            }
+
+            class ReplaceCredentialCommand <<record>> {
+                +CredentialId: int
+                +CardId: CardId
+                +OperatorId: int
+            }
+
+            class RevokeCredentialCommand <<record>> {
+                +CredentialId: int
+                +Reason: ERevocationReason
+                +Note: string?
+                +OperatorId: int
+            }
+
+            class RecordAccessEventCommand <<record>> {
+                +PropertyId: int
+                +CardId: CardId
+                +AccessPoint: EAccessPoint
+                +RoomId: int?
+                +OccurredAt: DateTimeOffset
+            }
+
+            class GetAllAccessEventsByPropertyIdQuery <<record>> {
+                +PropertyId: int
+                +From: DateTimeOffset?
+                +To: DateTimeOffset?
+                +Result: EAccessResult?
+                +HolderName: string?
+                +CredentialId: int?
+                +CardId: CardId?
+                +AccessPoint: EAccessPoint?
+                +RoomId: int?
+                +Page: int
+                +PageSize: int
+            }
+
+            interface ICredentialRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<Credential>>
+                +FindByPropertyIdAndCardIdAsync(int propertyId, CardId cardId, CancellationToken cancellationToken): Task<IEnumerable<Credential>>
+                +FindByStaffMemberIdAsync(int staffMemberId, CancellationToken cancellationToken): Task<IEnumerable<Credential>>
+                +FindByBookingIdAsync(int bookingId, CancellationToken cancellationToken): Task<IEnumerable<Credential>>
+            }
+
+            interface IStaffMemberRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<StaffMember>>
+            }
+
+            interface IAccessEventRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(GetAllAccessEventsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<AccessEvent>>
+                +CountByPropertyIdAsync(GetAllAccessEventsByPropertyIdQuery query, CancellationToken cancellationToken): Task<int>
+            }
+        }
+
+        package "Application" as AccessControlApplication {
+            enum CredentialError {
+                InvalidInput
+                CredentialNotFound
+                StaffMemberNotFound
+                StaffCredentialExists
+                DuplicateCardId
+                CredentialNotUsable
+            }
+
+            enum AccessEventError {
+                InvalidInput
+                AccessPointNotRegistered
+                CredentialNotFound
+                AccessEventNotFound
+            }
+
+            class AccessEventPage <<record>> {
+                +AccessEvents: IEnumerable<AccessEvent>
+                +Page: int
+                +PageSize: int
+                +TotalCount: int
+            }
+
+            interface ICredentialCommandService {
+                +Handle(IssueGuestKeyCardsCommand command, CancellationToken cancellationToken): Task<Result<IEnumerable<Credential>, CredentialError>>
+                +Handle(IssueStaffCredentialCommand command, CancellationToken cancellationToken): Task<Result<Credential, CredentialError>>
+                +Handle(ReplaceCredentialCommand command, CancellationToken cancellationToken): Task<Result<Credential, CredentialError>>
+                +Handle(RevokeCredentialCommand command, CancellationToken cancellationToken): Task<Result<Credential, CredentialError>>
+                +Handle(EndGuestKeyCardsCommand command, CancellationToken cancellationToken): Task<Result<IEnumerable<Credential>, CredentialError>>
+            }
+
+            interface ICredentialQueryService {
+                +Handle(GetAllCredentialsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<Credential>>
+                +Handle(GetCredentialByIdQuery query, CancellationToken cancellationToken): Task<Credential?>
+            }
+
+            interface IStaffMemberQueryService {
+                +Handle(GetAllStaffMembersByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<StaffMember>>
+            }
+
+            interface IAccessEventCommandService {
+                +Handle(RecordAccessEventCommand command, CancellationToken cancellationToken): Task<Result<AccessEvent, AccessEventError>>
+            }
+
+            interface IAccessEventQueryService {
+                +Handle(GetAllAccessEventsByPropertyIdQuery query, CancellationToken cancellationToken): Task<AccessEventPage>
+                +Handle(GetAccessEventByIdQuery query, CancellationToken cancellationToken): Task<AccessEvent?>
+            }
+
+            class CredentialCommandService implements ICredentialCommandService {
+                +CredentialCommandService(ICredentialRepository credentialRepository, IStaffMemberRepository staffMemberRepository, IUnitOfWork unitOfWork)
+            }
+
+            class CredentialQueryService implements ICredentialQueryService {
+                +CredentialQueryService(ICredentialRepository credentialRepository)
+            }
+
+            class StaffMemberQueryService implements IStaffMemberQueryService {
+                +StaffMemberQueryService(IStaffMemberRepository staffMemberRepository)
+            }
+
+            class AccessEventCommandService implements IAccessEventCommandService {
+                +AccessEventCommandService(IAccessEventRepository accessEventRepository, ICredentialRepository credentialRepository, IUnitOfWork unitOfWork)
+            }
+
+            class AccessEventQueryService implements IAccessEventQueryService {
+                +AccessEventQueryService(IAccessEventRepository accessEventRepository)
+            }
+
+            class AccessControlContextFacade implements IAccessControlContextFacade {
+                +AccessControlContextFacade(ICredentialCommandService credentialCommandService)
+            }
+        }
+
+        package "Infrastructure" as AccessControlInfrastructure {
+            class CredentialRepository extends BaseRepository implements ICredentialRepository
+            class StaffMemberRepository extends BaseRepository implements IStaffMemberRepository
+            class AccessEventRepository extends BaseRepository implements IAccessEventRepository
+        }
+
         package "Interfaces.ACL" as AccessControlAcl {
             interface IAccessControlContextFacade {
                 +IssueGuestKeyCardsAsync(int propertyId, int bookingId, string bookingCode, int roomId, string holderName, DateTimeOffset validFrom, DateTimeOffset validUntil, IReadOnlyList<string> cardIds, int issuedBy, CancellationToken cancellationToken): Task<GuestKeyCardsIssue>
@@ -1072,20 +1677,470 @@
             }
         }
 
-        package "Application.ACL" as AccessControlApplicationAcl {
-            class AccessControlContextFacade implements IAccessControlContextFacade {
-                +AccessControlContextFacade(ICredentialCommandService credentialCommandService)
+        package "Interfaces.Rest" as AccessControlRest {
+            class PropertyCredentialsController {
+                +GetCredentialsByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+                +IssueGuestKeyCards(int propertyId, IssueGuestKeyCardsResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +IssueStaffCredential(int propertyId, IssueStaffCredentialResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class CredentialsController {
+                +GetCredentialById(int credentialId, CancellationToken cancellationToken): Task<IActionResult>
+                +ReplaceCredential(int credentialId, ReplaceCredentialResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +RevokeCredential(int credentialId, RevokeCredentialResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyStaffMembersController {
+                +GetStaffMembersByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyAccessEventsController {
+                +GetAccessEventsByPropertyId(int propertyId, DateTimeOffset? from, DateTimeOffset? to, string? result, string? holderName, int? credentialId, string? cardId, string? accessPoint, int? roomId, CancellationToken cancellationToken, int page, int pageSize): Task<IActionResult>
+            }
+
+            class AccessEventsController {
+                +GetAccessEventById(int accessEventId, CancellationToken cancellationToken): Task<IActionResult>
+                +RecordAccessEvent(RecordAccessEventResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class CredentialActionResultAssembler <<static>> {
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, CredentialError> result, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromMissingCredential(ControllerBase controller): IActionResult
+                +ToActionResultFromInvalidResource(ControllerBase controller, ArgumentException exception): IActionResult
+            }
+
+            class AccessEventActionResultAssembler <<static>> {
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, AccessEventError> result, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromMissingAccessEvent(ControllerBase controller): IActionResult
+                +ToActionResultFromUnregisteredAccessPoint(ControllerBase controller): IActionResult
+                +ToActionResultFromInvalidResource(ControllerBase controller, ArgumentException exception): IActionResult
             }
         }
 
-        package "Domain.Model.Commands" as AccessControlCommands {
-            class EndGuestKeyCardsCommand <<record>> {
-                +BookingId: int
-                +EndAt: DateTimeOffset
-            }
-        }
+        StaffMember "1" -- "0..*" Credential : holds >
+        Credential "1" -- "0..*" AccessEvent : is presented in >
+        Credential "1" *-- "1" CardId
+        Credential "1" *-- "1" ValidityPeriod
+        Credential "1" *-- "0..1" Revocation
+        AccessEvent "1" *-- "1" CardId
 
+        Credential ..> ECredentialType
+        Credential ..> ECredentialStatus
+        Credential ..> EAccessScope
+        Revocation ..> ERevocationReason
+        AccessEvent ..> EHolderType
+        AccessEvent ..> EAccessPoint
+        AccessEvent ..> EAccessResult
+        AccessEvent ..> EDenialReason
+        AccessEventPage --> AccessEvent
+
+        CredentialCommandService ..> ICredentialRepository
+        CredentialCommandService ..> IStaffMemberRepository
+        CredentialQueryService ..> ICredentialRepository
+        StaffMemberQueryService ..> IStaffMemberRepository
+        AccessEventCommandService ..> IAccessEventRepository
+        AccessEventCommandService ..> ICredentialRepository
+        AccessEventQueryService ..> IAccessEventRepository
+        AccessEventQueryService ..> AccessEventPage
+        AccessControlContextFacade ..> ICredentialCommandService
+        AccessControlContextFacade ..> IssueGuestKeyCardsCommand
         AccessControlContextFacade ..> EndGuestKeyCardsCommand
+        AccessControlContextFacade ..> GuestKeyCardsIssue
+
+        PropertyCredentialsController ..> ICredentialCommandService
+        PropertyCredentialsController ..> ICredentialQueryService
+        CredentialsController ..> ICredentialCommandService
+        CredentialsController ..> ICredentialQueryService
+        PropertyCredentialsController ..> CredentialActionResultAssembler
+        CredentialsController ..> CredentialActionResultAssembler
+        PropertyStaffMembersController ..> IStaffMemberQueryService
+        PropertyAccessEventsController ..> IAccessEventQueryService
+        AccessEventsController ..> IAccessEventCommandService
+        AccessEventsController ..> IAccessEventQueryService
+        PropertyAccessEventsController ..> AccessEventActionResultAssembler
+        AccessEventsController ..> AccessEventActionResultAssembler
+    }
+
+    package "Overview Bounded Context" as Overview {
+        package "Domain" as OverviewDomain {
+            class GetDashboardByPropertyIdQuery <<record>> {
+                +PropertyId: int
+                +Date: DateOnly
+                +From: DateOnly
+                +To: DateOnly
+            }
+
+            class GetAllPropertyOverviewsQuery <<record>> {
+                +Date: DateOnly
+            }
+
+            class PropertyReadModel <<ReadModel>> <<record>> {
+                +Id: int
+                +Name: string
+            }
+
+            class RoomReadModel <<ReadModel>> <<record>> {
+                +Id: int
+                +Number: string
+            }
+
+            class StatusPeriodReadModel <<ReadModel>> <<record>> {
+                +RoomId: int
+                +Status: ERoomStatus
+                +StartDate: DateOnly
+                +EndDate: DateOnly
+                +Covers(DateOnly date): bool
+            }
+
+            class BookingReadModel <<ReadModel>> <<record>> {
+                +Id: int
+                +Code: string
+                +Status: EBookingStatus
+                +GuestName: string
+                +RoomId: int?
+                +CheckInDate: DateOnly
+                +CheckOutDate: DateOnly
+                +TotalAmount: decimal
+                +PaidAmount: decimal = 0
+                +BalanceDue: decimal
+                +Nights: IEnumerable<DateOnly>
+                +HoldsRoom: bool
+                +EarnsRevenue: bool
+                +CoversNight(DateOnly date): bool
+            }
+
+            enum "EBookingStatus" as OverviewEBookingStatus <<ValueObject>> {
+                Pending
+                Confirmed
+                CheckedIn
+                CheckedOut
+                Cancelled
+                NoShow
+            }
+
+            enum ERoomStatus <<ValueObject>> {
+                Blocked
+                OutOfService
+                NeedsCleaning
+            }
+
+            enum ERoomDayStatus <<ValueObject>> {
+                Available
+                Booked
+                Occupied
+                NeedsCleaning
+                Blocked
+                OutOfService
+            }
+
+            enum EDashboardSection <<ValueObject>> {
+                Rooms
+                Bookings
+                Inventory
+                AccessControl
+            }
+
+            class OperationalDashboard <<ValueObject>> <<record>> {
+                +PropertyId: int
+                +PropertyName: string
+                +Date: DateOnly
+                +Overview: PropertyOverview?
+                +RoomStatuses: RoomStatusSummary?
+                +TodaysArrivals: IReadOnlyList<ArrivalSummary>?
+                +DailyPerformance: IReadOnlyList<DailyPerformance>?
+                +Inventory: InventorySummary?
+                +Access: AccessSummary?
+                +UnavailableSections: IReadOnlyList<EDashboardSection>
+            }
+
+            class "PropertyOverview" as OverviewPropertyOverview <<ValueObject>> <<record>> {
+                +PropertyId: int
+                +Name: string
+                +RoomsCount: int
+                +HeldRooms: int
+                +RoomsNeedingCleaning: int
+                +RoomsOutOfOrder: int
+                +OccupancyRate: decimal
+                +AvailableRooms: int
+                +AlertsCount: int
+                +{static} For(PropertyReadModel property, IReadOnlyCollection<RoomReadModel> rooms, IEnumerable<BookingReadModel> bookings, IEnumerable<StatusPeriodReadModel> statusPeriods, DateOnly date): PropertyOverview
+            }
+
+            class RoomStatusSummary <<ValueObject>> <<record>> {
+                +Counts: IReadOnlyDictionary<ERoomDayStatus, int>
+                +{static} DayStatusOf(RoomReadModel room, IEnumerable<BookingReadModel> bookings, IEnumerable<StatusPeriodReadModel> statusPeriods, DateOnly date): ERoomDayStatus
+                +{static} For(IEnumerable<RoomReadModel> rooms, IReadOnlyCollection<BookingReadModel> bookings, IReadOnlyCollection<StatusPeriodReadModel> statusPeriods, DateOnly date): RoomStatusSummary
+            }
+
+            class ArrivalSummary <<ValueObject>> <<record>> {
+                +BookingId: int
+                +BookingCode: string
+                +GuestName: string
+                +RoomNumber: string?
+                +CheckInDate: DateOnly
+                +CheckOutDate: DateOnly
+                +Arrived: bool
+                +Status: EBookingStatus
+                +BalanceDue: decimal
+                +{static} For(IEnumerable<BookingReadModel> bookings, IEnumerable<RoomReadModel> rooms, DateOnly date): IReadOnlyList<ArrivalSummary>
+            }
+
+            class "DailyPerformance" as OverviewDailyPerformance <<ValueObject>> <<record>> {
+                +Date: DateOnly
+                +Revenue: decimal
+                +SoldRooms: int
+                +RoomsCount: int
+                +OccupancyRate: decimal
+                +{static} Series(IEnumerable<BookingReadModel> bookings, DateOnly from, DateOnly to, int roomsCount): IReadOnlyList<DailyPerformance>
+            }
+
+            class InventorySummary <<ValueObject>> <<record>> {
+                +ItemsCount: int
+                +LowStockItems: int
+                +OutOfStockItems: int
+                +ItemsToReplenish: int
+            }
+
+            class AccessSummary <<ValueObject>> <<record>> {
+                +GrantedEvents: int
+                +DeniedEvents: int
+                +TotalEvents: int
+            }
+
+            interface IOverviewReadRepository {
+                +FindRoomsByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IReadOnlyList<RoomReadModel>?>
+                +FindStatusPeriodsByPropertyIdAsync(int propertyId, DateOnly from, DateOnly to, CancellationToken cancellationToken): Task<IReadOnlyList<StatusPeriodReadModel>?>
+                +FindBookingsByPropertyIdAsync(int propertyId, DateOnly from, DateOnly to, CancellationToken cancellationToken): Task<IReadOnlyList<BookingReadModel>?>
+            }
+        }
+
+        package "Application" as OverviewApplication {
+            enum OverviewError {
+                InvalidInput
+                PropertyNotFound
+            }
+
+            interface IOverviewQueryService {
+                +Handle(GetDashboardByPropertyIdQuery query, CancellationToken cancellationToken): Task<Result<OperationalDashboard, OverviewError>>
+                +Handle(GetAllPropertyOverviewsQuery query, CancellationToken cancellationToken): Task<(IReadOnlyList<PropertyOverview>, IReadOnlyList<EDashboardSection>)>
+            }
+
+            class OverviewQueryService implements IOverviewQueryService {
+                +MaxPerformanceNights: int = 92
+                +OverviewQueryService(IOverviewReadRepository overviewReadRepository, ExternalPropertyService externalPropertyService, ExternalInventoryService externalInventoryService, ExternalAccessControlService externalAccessControlService)
+            }
+
+            class ExternalPropertyService <<ACL>> {
+                +ExternalPropertyService(IPropertyQueryService propertyQueryService)
+                +FetchPropertyByIdAsync(int propertyId, CancellationToken cancellationToken): Task<PropertyReadModel?>
+                +FetchAllPropertiesAsync(CancellationToken cancellationToken): Task<IReadOnlyList<PropertyReadModel>>
+            }
+
+            class ExternalInventoryService <<ACL>> {
+                +ExternalInventoryService(IInventoryItemQueryService inventoryItemQueryService, ILogger<ExternalInventoryService> logger)
+                +FetchInventorySummaryAsync(int propertyId, CancellationToken cancellationToken): Task<InventorySummary?>
+            }
+
+            class ExternalAccessControlService <<ACL>> {
+                +ExternalAccessControlService(IAccessEventQueryService accessEventQueryService, IClock clock, ILogger<ExternalAccessControlService> logger)
+                +FetchAccessSummaryAsync(int propertyId, DateOnly date, CancellationToken cancellationToken): Task<AccessSummary?>
+            }
+        }
+
+        package "Infrastructure" as OverviewInfrastructure {
+            class OverviewReadRepository implements IOverviewReadRepository {
+                +OverviewReadRepository(AppDbContext context, ILogger<OverviewReadRepository> logger)
+                +FindRoomsByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IReadOnlyList<RoomReadModel>?>
+                +FindStatusPeriodsByPropertyIdAsync(int propertyId, DateOnly from, DateOnly to, CancellationToken cancellationToken): Task<IReadOnlyList<StatusPeriodReadModel>?>
+                +FindBookingsByPropertyIdAsync(int propertyId, DateOnly from, DateOnly to, CancellationToken cancellationToken): Task<IReadOnlyList<BookingReadModel>?>
+            }
+            note right of OverviewReadRepository : Reads the rooms, status_periods, bookings and payments tables with read-only SQL queries
+
+            class "RoomRow" as OverviewRoomRow {
+                +Id: int
+                +Number: string
+            }
+
+            class "StatusPeriodRow" as OverviewStatusPeriodRow {
+                +RoomId: int
+                +Status: string
+                +StartDate: DateTime
+                +EndDate: DateTime
+            }
+
+            class "BookingRow" as OverviewBookingRow {
+                +Id: int
+                +Code: string
+                +Status: string
+                +GuestName: string
+                +RoomId: int?
+                +CheckInDate: DateTime
+                +CheckOutDate: DateTime
+                +TotalAmount: decimal
+                +PaidAmount: decimal
+            }
+        }
+
+        package "Interfaces.Rest" as OverviewRest {
+            class PropertyDashboardController {
+                +GetDashboardByPropertyId(int propertyId, DateOnly? date, DateOnly? from, DateOnly? to, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyOverviewsController {
+                +GetAllPropertyOverviews(DateOnly? date, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class DashboardResource <<record>> {
+                +PropertyId: int
+                +PropertyName: string
+                +Date: DateOnly
+                +Overview: PropertyOverviewResource?
+                +RoomStatuses: IReadOnlyDictionary<string, int>?
+                +TodaysArrivals: IEnumerable<ArrivalSummaryResource>?
+                +DailyPerformance: IEnumerable<DailyPerformanceResource>?
+                +Inventory: InventorySummaryResource?
+                +Access: AccessSummaryResource?
+                +UnavailableSections: IEnumerable<string>
+            }
+
+            class PropertyOverviewResource <<record>> {
+                +PropertyId: int
+                +Name: string
+                +RoomsCount: int
+                +HeldRooms: int
+                +RoomsNeedingCleaning: int
+                +RoomsOutOfOrder: int
+                +AvailableRooms: int
+                +AlertsCount: int
+                +OccupancyRate: decimal
+            }
+
+            class PropertyOverviewsResource <<record>> {
+                +Date: DateOnly
+                +Overviews: IEnumerable<PropertyOverviewResource>
+                +UnavailableSections: IEnumerable<string>
+            }
+
+            class ArrivalSummaryResource <<record>> {
+                +BookingId: int
+                +BookingCode: string
+                +GuestName: string
+                +RoomNumber: string?
+                +CheckInDate: DateOnly
+                +CheckOutDate: DateOnly
+                +Arrived: bool
+                +Status: string
+                +BalanceDue: decimal
+            }
+
+            class DailyPerformanceResource <<record>> {
+                +Date: DateOnly
+                +Revenue: decimal
+                +SoldRooms: int
+                +RoomsCount: int
+                +OccupancyRate: decimal
+            }
+
+            class InventorySummaryResource <<record>> {
+                +ItemsCount: int
+                +LowStockItems: int
+                +OutOfStockItems: int
+                +ItemsToReplenish: int
+            }
+
+            class AccessSummaryResource <<record>> {
+                +GrantedEvents: int
+                +DeniedEvents: int
+                +TotalEvents: int
+            }
+
+            class DashboardResourceFromEntityAssembler <<static>> {
+                +ToResourceFromEntity(OperationalDashboard entity): DashboardResource
+            }
+
+            class PropertyOverviewResourceFromEntityAssembler <<static>> {
+                +ToResourceFromEntity(PropertyOverview entity): PropertyOverviewResource
+                +ToResourceFromEntities(DateOnly date, IEnumerable<PropertyOverview> overviews, IEnumerable<EDashboardSection> unavailableSections): PropertyOverviewsResource
+            }
+
+            class OverviewActionResultAssembler <<static>> {
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, OverviewError> result, Func<TValue, IActionResult> successAction): IActionResult
+            }
+
+            class OverviewEnumNames <<static>> {
+                +ToName<TEnum>(TEnum value): string
+            }
+        }
+
+        package "Resources" as OverviewLocalizedResources {
+            class OverviewMessages
+            note right of OverviewMessages : Marker type of the English and Spanish messages in OverviewMessages.resx and OverviewMessages.es.resx
+        }
+
+        OperationalDashboard "1" *-- "0..1" OverviewPropertyOverview
+        OperationalDashboard "1" *-- "0..1" RoomStatusSummary
+        OperationalDashboard "1" *-- "0..*" ArrivalSummary
+        OperationalDashboard "1" *-- "0..*" OverviewDailyPerformance
+        OperationalDashboard "1" *-- "0..1" InventorySummary
+        OperationalDashboard "1" *-- "0..1" AccessSummary
+        OperationalDashboard ..> EDashboardSection
+        RoomStatusSummary ..> ERoomDayStatus
+        BookingReadModel ..> OverviewEBookingStatus
+        ArrivalSummary ..> OverviewEBookingStatus
+        StatusPeriodReadModel ..> ERoomStatus
+        OverviewPropertyOverview ..> PropertyReadModel
+        OverviewPropertyOverview ..> RoomReadModel
+        OverviewPropertyOverview ..> BookingReadModel
+        OverviewPropertyOverview ..> StatusPeriodReadModel
+        RoomStatusSummary ..> RoomReadModel
+        RoomStatusSummary ..> BookingReadModel
+        RoomStatusSummary ..> StatusPeriodReadModel
+        ArrivalSummary ..> BookingReadModel
+        ArrivalSummary ..> RoomReadModel
+        OverviewDailyPerformance ..> BookingReadModel
+        IOverviewReadRepository ..> RoomReadModel
+        IOverviewReadRepository ..> StatusPeriodReadModel
+        IOverviewReadRepository ..> BookingReadModel
+
+        IOverviewQueryService ..> OperationalDashboard
+        IOverviewQueryService ..> OverviewError
+        OverviewQueryService ..> IOverviewReadRepository
+        OverviewQueryService ..> ExternalPropertyService
+        OverviewQueryService ..> ExternalInventoryService
+        OverviewQueryService ..> ExternalAccessControlService
+        ExternalPropertyService ..> IPropertyQueryService
+        ExternalPropertyService ..> PropertyReadModel
+        ExternalInventoryService ..> IInventoryItemQueryService
+        ExternalInventoryService ..> InventorySummary
+        ExternalAccessControlService ..> IAccessEventQueryService
+        ExternalAccessControlService ..> IClock
+        ExternalAccessControlService ..> AccessSummary
+
+        OverviewReadRepository +-- OverviewRoomRow
+        OverviewReadRepository +-- OverviewStatusPeriodRow
+        OverviewReadRepository +-- OverviewBookingRow
+
+        PropertyDashboardController ..> IOverviewQueryService
+        PropertyDashboardController ..> IClock
+        PropertyDashboardController ..> OverviewActionResultAssembler
+        PropertyDashboardController ..> DashboardResourceFromEntityAssembler
+        PropertyOverviewsController ..> IOverviewQueryService
+        PropertyOverviewsController ..> IClock
+        PropertyOverviewsController ..> PropertyOverviewResourceFromEntityAssembler
+        DashboardResource "1" *-- "0..1" PropertyOverviewResource
+        DashboardResource "1" *-- "0..*" ArrivalSummaryResource
+        DashboardResource "1" *-- "0..*" DailyPerformanceResource
+        DashboardResource "1" *-- "0..1" InventorySummaryResource
+        DashboardResource "1" *-- "0..1" AccessSummaryResource
+        PropertyOverviewsResource "1" *-- "0..*" PropertyOverviewResource
+        DashboardResourceFromEntityAssembler ..> DashboardResource
+        DashboardResourceFromEntityAssembler ..> PropertyOverviewResourceFromEntityAssembler
+        DashboardResourceFromEntityAssembler ..> OverviewEnumNames
+        PropertyOverviewResourceFromEntityAssembler ..> PropertyOverviewResource
+        PropertyOverviewResourceFromEntityAssembler ..> PropertyOverviewsResource
+        PropertyOverviewResourceFromEntityAssembler ..> OverviewEnumNames
+        OverviewActionResultAssembler ..> OverviewError
+        OverviewActionResultAssembler ..> OverviewMessages
     }
 
 @enduml
