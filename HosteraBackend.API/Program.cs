@@ -40,6 +40,7 @@ using HosteraBackend.API.Shared.Domain.Repositories;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Shared.Infrastructure.Seeding;
 using HosteraBackend.API.Shared.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -52,7 +53,12 @@ builder.Services.AddRouting(options => options.LowercaseUrls = true);
 
 // Configure Kebab-Case route naming convention for controllers
 builder.Services.AddControllers(options =>
-    options.Conventions.Add(new KebabCaseRouteNamingConvention()));
+        options.Conventions.Add(new KebabCaseRouteNamingConvention()))
+    .ConfigureApiBehaviorOptions(options =>
+        options.InvalidModelStateResponseFactory = InvalidModelStateProblemFactory.ToActionResultFromInvalidModelState);
+
+// Add Localization: error messages are described in the language of the Accept-Language header
+builder.Services.AddLocalization();
 
 builder.Services.Configure<RouteOptions>(options =>
 {
@@ -94,6 +100,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IClock, PropertyClock>();
+builder.Services.AddScoped<DemoDataSeeder>();
 
 // Inventory Bounded Context
 builder.Services.AddScoped<IStorageLocationRepository, StorageLocationRepository>();
@@ -159,6 +166,10 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     context.Database.EnsureCreated();
+
+    // A new development database receives a demonstration hotel, unless Hostera:SeedDemoData is false
+    if (app.Environment.IsDevelopment() && app.Configuration.GetValue("Hostera:SeedDemoData", true))
+        await scope.ServiceProvider.GetRequiredService<DemoDataSeeder>().SeedAsync(CancellationToken.None);
 }
 
 // Configure the HTTP request pipeline.
@@ -169,6 +180,14 @@ if (app.Environment.IsDevelopment())
 }
 
 // Apply CORS Policy
+// Describe errors in English or Spanish from the Accept-Language header of each request, falling back to English.
+// Only the UI culture changes: numbers and dates are always read in English, so "0.01" stays a valid decimal.
+string[] supportedUiCultures = ["en", "es"];
+app.UseRequestLocalization(new RequestLocalizationOptions()
+    .SetDefaultCulture(supportedUiCultures[0])
+    .AddSupportedCultures(supportedUiCultures[0])
+    .AddSupportedUICultures(supportedUiCultures));
+
 app.UseCors("AllowAllPolicy");
 
 app.UseHttpsRedirection();

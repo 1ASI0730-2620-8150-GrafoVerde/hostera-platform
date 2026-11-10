@@ -1,6 +1,8 @@
 using HosteraBackend.API.AccessControl.Application.Errors;
 using HosteraBackend.API.Shared.Application.Patterns;
+using HosteraBackend.API.AccessControl.Resources;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace HosteraBackend.API.AccessControl.Interfaces.Rest.Transform;
 
@@ -18,13 +20,11 @@ public static class AccessEventActionResultAssembler
         _ => StatusCodes.Status400BadRequest
     };
 
-    private static string ToMessageFromAccessEventError(AccessEventError error) => error switch
+    private static string ToMessageFromAccessEventError(ControllerBase controller, AccessEventError error)
     {
-        AccessEventError.AccessPointNotRegistered => "The access point of the reader is not registered.",
-        AccessEventError.CredentialNotFound => "No credential of the property was written to the card.",
-        AccessEventError.AccessEventNotFound => "The specified access event was not found.",
-        _ => "One or more values are not valid."
-    };
+        var localizer = controller.HttpContext.RequestServices.GetRequiredService<IStringLocalizer<AccessControlMessages>>();
+        return localizer[$"{nameof(AccessEventError)}.{error}"];
+    }
 
     /// <summary>
     ///     Returns the success action, or a problem details response when the result is a failure.
@@ -81,6 +81,6 @@ public static class AccessEventActionResultAssembler
         return controller.Problem(
             statusCode: ToStatusCodeFromAccessEventError(error),
             title: error.ToString(),
-            detail: ToMessageFromAccessEventError(error));
+            detail: ToMessageFromAccessEventError(controller, error));
     }
 }

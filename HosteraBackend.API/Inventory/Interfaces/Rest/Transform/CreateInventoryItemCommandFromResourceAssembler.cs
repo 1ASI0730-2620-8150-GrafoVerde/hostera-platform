@@ -28,6 +28,8 @@ public static class CreateInventoryItemCommandFromResourceAssembler
             InventoryEnumNames.Parse<EInventoryCategory>(resource.Category, "inventory category"),
             InventoryEnumNames.Parse<EInventoryUnit>(resource.Unit, "inventory unit"),
             resource.PrimaryLocationId,
-            resource.LowStockThreshold);
+            resource.LowStockThreshold,
+            resource.OpeningQuantity,
+            resource.Operator);
     }
 }

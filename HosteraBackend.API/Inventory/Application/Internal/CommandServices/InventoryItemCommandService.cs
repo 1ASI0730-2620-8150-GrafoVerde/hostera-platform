@@ -44,6 +44,12 @@ public class InventoryItemCommandService(
         try
         {
             inventoryItem = new InventoryItem(command);
+
+            // The opening quantity is recorded with the item, so the item never exists without its opening stock
+            if (command.OpeningQuantity > 0)
+                inventoryItem.AdjustStock(new AdjustStockCommand(0, EStockOperation.In, command.OpeningQuantity,
+                    command.PrimaryLocationId, null, EStockAdjustmentReason.OpeningStock, null,
+                    command.Operator ?? string.Empty), DateTimeOffset.UtcNow);
         }
         catch (ArgumentException)
         {

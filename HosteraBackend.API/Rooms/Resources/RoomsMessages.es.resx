@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>2.0</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <data name="RoomError.InvalidInput" xml:space="preserve">
+        <value>Uno o más valores no son válidos.</value>
+    </data>
+    <data name="RoomError.PropertyNotFound" xml:space="preserve">
+        <value>No se encontró el establecimiento indicado.</value>
+    </data>
+    <data name="RoomError.RoomTypeNotFound" xml:space="preserve">
+        <value>No se encontró el tipo de habitación indicado.</value>
+    </data>
+    <data name="RoomError.DuplicateRoomTypeName" xml:space="preserve">
+        <value>Otro tipo de habitación del establecimiento usa el mismo nombre.</value>
+    </data>
+    <data name="RoomError.RoomNotFound" xml:space="preserve">
+        <value>No se encontró la habitación indicada.</value>
+    </data>
+    <data name="RoomError.DuplicateRoomNumber" xml:space="preserve">
+        <value>Otra habitación del establecimiento usa el mismo número.</value>
+    </data>
+    <data name="RoomError.RoomTypeFromAnotherProperty" xml:space="preserve">
+        <value>El tipo de habitación pertenece a un establecimiento distinto al de la habitación.</value>
+    </data>
+    <data name="RoomError.InactiveRoomType" xml:space="preserve">
+        <value>El tipo de habitación está inactivo, así que no se le pueden asignar habitaciones.</value>
+    </data>
+    <data name="RoomError.RoomTypeInUse" xml:space="preserve">
+        <value>El tipo de habitación no se puede eliminar mientras una habitación pertenezca a él o un plan tarifario lo incluya.</value>
+    </data>
+    <data name="RoomError.InvalidDateRange" xml:space="preserve">
+        <value>El rango de fechas termina antes de empezar o dura más de 366 días.</value>
+    </data>
+    <data name="RoomError.RoomHeldByBooking" xml:space="preserve">
+        <value>Una reserva ocupa la habitación en un día del rango, así que ese día no puede tomar un estado operativo.</value>
+    </data>
+    <data name="RateError.InvalidInput" xml:space="preserve">
+        <value>Uno o más valores no son válidos, o un plan reembolsable no tiene política de cancelación.</value>
+    </data>
+    <data name="RateError.InvalidDateRange" xml:space="preserve">
+        <value>El rango de fechas termina antes de empezar o dura más de 366 noches.</value>
+    </data>
+    <data name="RateError.RatePlanNotFound" xml:space="preserve">
+        <value>No se encontró el plan tarifario indicado.</value>
+    </data>
+    <data name="RateError.DuplicateRatePlanName" xml:space="preserve">
+        <value>Otro plan tarifario del establecimiento usa el mismo nombre.</value>
+    </data>
+    <data name="RateError.RoomTypeNotInRatePlan" xml:space="preserve">
+        <value>El tipo de habitación no se vende con el plan tarifario.</value>
+    </data>
+    <data name="RateError.PropertyNotFound" xml:space="preserve">
+        <value>No se encontró el establecimiento indicado.</value>
+    </data>
+    <data name="RateError.UnknownRoomType" xml:space="preserve">
+        <value>Uno o más tipos de habitación no existen en el establecimiento del plan tarifario.</value>
+    </data>
+</root>

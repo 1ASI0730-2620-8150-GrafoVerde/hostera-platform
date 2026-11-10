@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>2.0</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <data name="RoomError.InvalidInput" xml:space="preserve">
+        <value>One or more values are not valid.</value>
+    </data>
+    <data name="RoomError.PropertyNotFound" xml:space="preserve">
+        <value>The specified property was not found.</value>
+    </data>
+    <data name="RoomError.RoomTypeNotFound" xml:space="preserve">
+        <value>The specified room type was not found.</value>
+    </data>
+    <data name="RoomError.DuplicateRoomTypeName" xml:space="preserve">
+        <value>Another room type of the property uses the same name.</value>
+    </data>
+    <data name="RoomError.RoomNotFound" xml:space="preserve">
+        <value>The specified room was not found.</value>
+    </data>
+    <data name="RoomError.DuplicateRoomNumber" xml:space="preserve">
+        <value>Another room of the property uses the same number.</value>
+    </data>
+    <data name="RoomError.RoomTypeFromAnotherProperty" xml:space="preserve">
+        <value>The room type belongs to a different property than the room.</value>
+    </data>
+    <data name="RoomError.InactiveRoomType" xml:space="preserve">
+        <value>The room type is inactive, so rooms cannot be assigned to it.</value>
+    </data>
+    <data name="RoomError.RoomTypeInUse" xml:space="preserve">
+        <value>The room type cannot be deleted while a room belongs to it or a rate plan lists it.</value>
+    </data>
+    <data name="RoomError.InvalidDateRange" xml:space="preserve">
+        <value>The date range ends before it starts or is longer than 366 days.</value>
+    </data>
+    <data name="RoomError.RoomHeldByBooking" xml:space="preserve">
+        <value>A booking holds the room on a day of the range, so the day cannot take an operational status.</value>
+    </data>
+    <data name="RateError.InvalidInput" xml:space="preserve">
+        <value>One or more values are not valid, or a refundable plan has no cancellation policy.</value>
+    </data>
+    <data name="RateError.InvalidDateRange" xml:space="preserve">
+        <value>The date range ends before it starts or is longer than 366 nights.</value>
+    </data>
+    <data name="RateError.RatePlanNotFound" xml:space="preserve">
+        <value>The specified rate plan was not found.</value>
+    </data>
+    <data name="RateError.DuplicateRatePlanName" xml:space="preserve">
+        <value>Another rate plan of the property uses the same name.</value>
+    </data>
+    <data name="RateError.RoomTypeNotInRatePlan" xml:space="preserve">
+        <value>The room type is not sold under the rate plan.</value>
+    </data>
+    <data name="RateError.PropertyNotFound" xml:space="preserve">
+        <value>The specified property was not found.</value>
+    </data>
+    <data name="RateError.UnknownRoomType" xml:space="preserve">
+        <value>One or more room types do not exist in the property of the rate plan.</value>
+    </data>
+</root>

@@ -29,6 +29,6 @@ public interface IRatePlanQueryService
     /// </summary>
     /// <param name="query">The <see cref="GetDailyRatesByPropertyIdQuery" /> query to handle.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The daily rates of the period.</returns>
+    /// <returns>The daily rates of the period, or every daily rate of the property when no period is given.</returns>
     Task<IEnumerable<DailyRate>> Handle(GetDailyRatesByPropertyIdQuery query, CancellationToken cancellationToken);
 }

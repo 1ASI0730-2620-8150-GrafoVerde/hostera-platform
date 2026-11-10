@@ -1,6 +1,8 @@
 using HosteraBackend.API.Overview.Application.Errors;
 using HosteraBackend.API.Shared.Application.Patterns;
+using HosteraBackend.API.Overview.Resources;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace HosteraBackend.API.Overview.Interfaces.Rest.Transform;
 
@@ -16,11 +18,11 @@ public static class OverviewActionResultAssembler
         _ => StatusCodes.Status400BadRequest
     };
 
-    private static string ToMessageFromOverviewError(OverviewError error) => error switch
+    private static string ToMessageFromOverviewError(ControllerBase controller, OverviewError error)
     {
-        OverviewError.PropertyNotFound => "The specified property was not found.",
-        _ => "The performance range must start before it ends and cover at most 92 nights."
-    };
+        var localizer = controller.HttpContext.RequestServices.GetRequiredService<IStringLocalizer<OverviewMessages>>();
+        return localizer[$"{nameof(OverviewError)}.{error}"];
+    }
 
     /// <summary>
     ///     Returns the success action, or a problem details response when the result is a failure.
@@ -38,6 +40,6 @@ public static class OverviewActionResultAssembler
         return result.Fold(successAction, error => controller.Problem(
             statusCode: ToStatusCodeFromOverviewError(error),
             title: error.ToString(),
-            detail: ToMessageFromOverviewError(error)));
+            detail: ToMessageFromOverviewError(controller, error)));
     }
 }

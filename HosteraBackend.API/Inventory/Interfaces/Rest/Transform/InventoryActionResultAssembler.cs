@@ -1,6 +1,8 @@
 using HosteraBackend.API.Inventory.Application.Errors;
 using HosteraBackend.API.Shared.Application.Patterns;
+using HosteraBackend.API.Inventory.Resources;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace HosteraBackend.API.Inventory.Interfaces.Rest.Transform;
 
@@ -25,26 +27,11 @@ public static class InventoryActionResultAssembler
         _ => StatusCodes.Status400BadRequest
     };
 
-    private static string ToMessageFromInventoryError(InventoryError error) => error switch
+    private static string ToMessageFromInventoryError(ControllerBase controller, InventoryError error)
     {
-        InventoryError.InvalidInput => "One or more values are not valid.",
-        InventoryError.StorageLocationNotFound => "The specified storage location was not found.",
-        InventoryError.InventoryItemNotFound => "The specified inventory item was not found.",
-        InventoryError.StorageLocationFromAnotherProperty =>
-            "The storage location belongs to a different property than the inventory item.",
-        InventoryError.DuplicateStorageLocationCode => "Another storage location of the property uses the same code.",
-        InventoryError.DuplicateInventoryItemCode => "Another inventory item of the property uses the same code.",
-        InventoryError.StorageLocationInUse =>
-            "The storage location cannot be deleted while inventory items are assigned to it.",
-        InventoryError.StorageLocationNotAssigned => "The inventory item is not assigned to the storage location.",
-        InventoryError.StorageLocationAssignmentInUse =>
-            "The primary location, or a location that keeps stock of the item, cannot be removed from it.",
-        InventoryError.UnitChangeNotAllowed => "The unit of the item cannot change after its first stock adjustment.",
-        InventoryError.InvalidAdjustmentReason =>
-            "The reason is not valid for the operation, or the note required by the other reason is missing.",
-        InventoryError.InsufficientStock => "The quantity exceeds the stock on hand in the storage location.",
-        _ => "An unexpected error occurred."
-    };
+        var localizer = controller.HttpContext.RequestServices.GetRequiredService<IStringLocalizer<InventoryMessages>>();
+        return localizer[$"{nameof(InventoryError)}.{error}"];
+    }
 
     /// <summary>
     ///     Returns the success action, or a problem details response when the result is a failure.
@@ -99,6 +86,6 @@ public static class InventoryActionResultAssembler
         return controller.Problem(
             statusCode: ToStatusCodeFromInventoryError(error),
             title: error.ToString(),
-            detail: ToMessageFromInventoryError(error));
+            detail: ToMessageFromInventoryError(controller, error));
     }
 }

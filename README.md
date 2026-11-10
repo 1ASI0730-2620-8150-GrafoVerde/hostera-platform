@@ -52,7 +52,7 @@ All routes start with `/api/v1`.
 | Rooms | `GET /rate-plans/{ratePlanId}` | Get a rate plan. |
 | Rooms | `PUT /rate-plans/{ratePlanId}` | Update a rate plan; plans are made inactive instead of deleted. |
 | Rooms | `PUT /rate-plans/{ratePlanId}/daily-rates` | Set the price of a range of nights for a room type, or return them to the base rate. |
-| Rooms | `GET /properties/{propertyId}/daily-rates?startDate=&endDate=` | List the daily rates of a property between two nights. |
+| Rooms | `GET /properties/{propertyId}/daily-rates` | List the daily rates of a property, optionally limited with `startDate` and `endDate`. |
 | Bookings | `GET /properties/{propertyId}/bookings` | List the bookings of a property, filtered by `status`, `roomId`, `from`, `to`, and `search`, and optionally paged with `page` and `pageSize` (`X-Total-Count` header). |
 | Bookings | `POST /properties/{propertyId}/bookings` | Create a pending booking; the server assigns its code and total. |
 | Bookings | `GET /bookings/{bookingId}` | Get a booking. |
@@ -65,7 +65,7 @@ All routes start with `/api/v1`.
 | Bookings | `POST /bookings/{bookingId}/transitions` | Confirm, cancel, mark as a no-show, or restore a booking. A rejected transition returns the current status and the allowed transitions. |
 | Inventory | `GET`, `POST /properties/{propertyId}/storage-locations` | List and create storage locations. |
 | Inventory | `GET`, `PUT`, `DELETE /storage-locations/{storageLocationId}` | Get, update, and delete a storage location. |
-| Inventory | `GET`, `POST /properties/{propertyId}/inventory-items` | List and create inventory items. |
+| Inventory | `GET`, `POST /properties/{propertyId}/inventory-items` | List and create inventory items; an optional `openingQuantity` is recorded with the new item. |
 | Inventory | `GET`, `PUT /inventory-items/{inventoryItemId}` | Get and update an inventory item. |
 | Inventory | `POST /inventory-items/{inventoryItemId}/stock-adjustments` | Adjust or transfer stock. |
 | Inventory | `DELETE /inventory-items/{inventoryItemId}/stocks/{storageLocationId}` | Remove a storage location from an item. |
@@ -146,6 +146,12 @@ DROP DATABASE hostera;
 
 This removes the data created through the API.
 
+### Demonstration data
+
+In the Development environment, a new database receives a demonstration hotel the first time the API starts. Both properties get the room types, rooms, rate plans, storage locations, inventory items, and staff credentials of the frontend mock data, and their bookings, payments, room statuses, and access events are placed around the current day: stays from the last weeks, guests staying now, today's arrivals, and bookings ahead. A database that already has room types is left unchanged.
+
+To start with an empty database instead, set `Hostera:SeedDemoData` to `false` in `appsettings.Development.json` or with the `Hostera__SeedDemoData=false` environment variable. To load the demonstration data again, drop the database and restart the API.
+
 ## Concurrency
 
 Booking responses carry the version of the booking in the `ETag` header and in the `version` field. To make sure a change does not overwrite someone else's, send that ETag back in `If-Match` when updating a booking, changing its status, recording a payment, or checking in or out:
@@ -163,7 +169,7 @@ Browser clients can read the `ETag`, `X-Total-Count`, and `Idempotent-Replayed` 
 
 ## Error responses
 
-Errors use the RFC 9457 problem details format. The `title` holds a stable error code, such as `DuplicateRoomTypeName`, and `detail` explains it:
+Errors use the RFC 9457 problem details format. The `title` holds a stable error code, such as `DuplicateRoomTypeName`, and `detail` explains it in the language of the request:
 
 ```json
 {
@@ -178,6 +184,27 @@ Errors use the RFC 9457 problem details format. The `title` holds a stable error
 - **404 Not Found**: the resource, or the property it belongs to, does not exist.
 - **409 Conflict**: the request breaks a business rule, such as a duplicate name or insufficient stock, or the booking changed after it was read.
 - **422 Unprocessable Content**: a payment amount is not valid or exceeds the balance due.
+
+### Language of the messages
+
+The `detail` is written in English or Spanish, following the `Accept-Language` header of the request. Any other language, or a request without the header, gets English. The `title` never changes with the language, so clients can recognize the error by its code and show their own text:
+
+```http
+GET /api/v1/rooms/999 HTTP/1.1
+Accept-Language: es
+```
+
+```json
+{
+  "title": "RoomNotFound",
+  "status": 404,
+  "detail": "No se encontró la habitación indicada."
+}
+```
+
+- The texts of each bounded context live in `<Context>/Resources/<Context>Messages.resx` (English) and `<Context>Messages.es.resx` (Spanish), keyed by error type and value, such as `RoomError.RoomNotFound`. Shared texts live in `Shared/Resources/CommonMessages`.
+- A request body that fails validation returns the `InvalidInput` title with a translated `detail`. The messages of each field in `errors` stay in English.
+- Only the texts change with the language. Numbers and dates are always read in the English format, such as `120.50` and `2026-11-20`.
 
 ## Project structure
 

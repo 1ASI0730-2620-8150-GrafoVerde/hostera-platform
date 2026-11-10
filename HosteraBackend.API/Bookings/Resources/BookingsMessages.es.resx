@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>2.0</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <data name="BookingError.InvalidInput" xml:space="preserve">
+        <value>Uno o más valores no son válidos.</value>
+    </data>
+    <data name="BookingError.InvalidStayDates" xml:space="preserve">
+        <value>El día de salida debe ser posterior al de llegada, y una estadía cubre como máximo 365 noches.</value>
+    </data>
+    <data name="BookingError.BookingNotFound" xml:space="preserve">
+        <value>No se encontró la reserva indicada.</value>
+    </data>
+    <data name="BookingError.RoomNotFound" xml:space="preserve">
+        <value>La habitación no existe en el establecimiento de la reserva.</value>
+    </data>
+    <data name="BookingError.RoomTypeNotFound" xml:space="preserve">
+        <value>El tipo de habitación no existe en el establecimiento de la reserva.</value>
+    </data>
+    <data name="BookingError.RatePlanNotFound" xml:space="preserve">
+        <value>El plan tarifario no existe en el establecimiento de la reserva.</value>
+    </data>
+    <data name="BookingError.RoomNotInRoomType" xml:space="preserve">
+        <value>La habitación no pertenece al tipo de habitación reservado.</value>
+    </data>
+    <data name="BookingError.InactiveRoomType" xml:space="preserve">
+        <value>El tipo de habitación está inactivo, así que las reservas nuevas no pueden usarlo.</value>
+    </data>
+    <data name="BookingError.InactiveRatePlan" xml:space="preserve">
+        <value>El plan tarifario está inactivo, así que las reservas nuevas no pueden usarlo.</value>
+    </data>
+    <data name="BookingError.RatePlanNotForRoomType" xml:space="preserve">
+        <value>El plan tarifario no vende el tipo de habitación reservado.</value>
+    </data>
+    <data name="BookingError.OverCapacity" xml:space="preserve">
+        <value>El número de huéspedes supera la capacidad del tipo de habitación.</value>
+    </data>
+    <data name="BookingError.RoomUnavailable" xml:space="preserve">
+        <value>Otra reserva ocupa la habitación, o la cubre un estado Bloqueada o Fuera de servicio, en una noche de la estadía.</value>
+    </data>
+    <data name="BookingError.NotEditable" xml:space="preserve">
+        <value>Solo se pueden editar reservas pendientes o confirmadas.</value>
+    </data>
+    <data name="BookingError.InvalidStatusChange" xml:space="preserve">
+        <value>La reserva no puede pasar hoy de su estado actual al solicitado.</value>
+    </data>
+    <data name="BookingError.CancellationReasonRequired" xml:space="preserve">
+        <value>Una cancelación necesita un motivo.</value>
+    </data>
+    <data name="BookingError.CancellationNoteRequired" xml:space="preserve">
+        <value>El motivo de cancelación Otro necesita una nota.</value>
+    </data>
+    <data name="BookingError.PaymentsNotAccepted" xml:space="preserve">
+        <value>Solo las reservas pendientes, confirmadas o con check-in aceptan pagos.</value>
+    </data>
+    <data name="BookingError.InvalidPaymentAmount" xml:space="preserve">
+        <value>El monto del pago debe ser positivo y tener como máximo dos decimales.</value>
+    </data>
+    <data name="BookingError.PaymentExceedsBalance" xml:space="preserve">
+        <value>El monto del pago supera el saldo pendiente de la reserva.</value>
+    </data>
+    <data name="BookingError.InvalidPaymentDate" xml:space="preserve">
+        <value>Un pago no puede recibirse en el futuro.</value>
+    </data>
+    <data name="BookingError.IdempotencyKeyReused" xml:space="preserve">
+        <value>La clave de idempotencia ya se usó para otro pago de la reserva.</value>
+    </data>
+    <data name="BookingError.IdentityNotVerified" xml:space="preserve">
+        <value>El check-in necesita un documento de identidad verificado con su tipo y número.</value>
+    </data>
+    <data name="BookingError.KeyCardRequired" xml:space="preserve">
+        <value>El check-in necesita al menos una tarjeta llave grabada para el huésped.</value>
+    </data>
+    <data name="BookingError.KeyCardsNotIssued" xml:space="preserve">
+        <value>Las tarjetas llave no se emitieron: una tarjeta no es válida o ya la usa otra credencial.</value>
+    </data>
+    <data name="BookingError.BalanceDue" xml:space="preserve">
+        <value>La reserva aún debe parte de su total, así que no se puede hacer el check-out.</value>
+    </data>
+    <data name="BookingError.ConcurrencyConflict" xml:space="preserve">
+        <value>La reserva cambió después de leerla. Vuelve a leerla y repite el cambio con su nuevo ETag.</value>
+    </data>
+</root>

@@ -12,6 +12,8 @@ namespace HosteraBackend.API.Inventory.Domain.Model.Commands;
 /// <param name="Unit">The EInventoryUnit in which the item is counted</param>
 /// <param name="PrimaryLocationId">The identifier of the storage location where the item is usually kept</param>
 /// <param name="LowStockThreshold">The quantity at which the item needs replenishment</param>
+/// <param name="OpeningQuantity">The quantity already on hand in the primary location, or 0</param>
+/// <param name="Operator">The name of the staff member who records the opening quantity; required when it is not 0</param>
 public record CreateInventoryItemCommand(
     int PropertyId,
     InventoryCode Code,
@@ -19,4 +21,6 @@ public record CreateInventoryItemCommand(
     EInventoryCategory Category,
     EInventoryUnit Unit,
     int PrimaryLocationId,
-    decimal LowStockThreshold);
+    decimal LowStockThreshold,
+    decimal OpeningQuantity = 0,
+    string? Operator = null);
