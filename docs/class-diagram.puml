@@ -1,9 +1,9 @@
-@startuml Hostera Platform Class Diagram - Rooms, Bookings, Inventory, Access Control and Shared Bounded Contexts
+@startuml Hostera Platform Class Diagram
 
     title
         Hostera Platform
         Class Diagram
-        Rooms, Bookings, Inventory, Access Control and Shared Bounded Contexts
+        Rooms, Bookings, Inventory, Access Control, Overview and Shared Bounded Contexts
     end title
 
     package "Shared Bounded Context" as Shared {
@@ -1759,6 +1759,388 @@
         AccessEventsController ..> IAccessEventQueryService
         PropertyAccessEventsController ..> AccessEventActionResultAssembler
         AccessEventsController ..> AccessEventActionResultAssembler
+    }
+
+    package "Overview Bounded Context" as Overview {
+        package "Domain" as OverviewDomain {
+            class GetDashboardByPropertyIdQuery <<record>> {
+                +PropertyId: int
+                +Date: DateOnly
+                +From: DateOnly
+                +To: DateOnly
+            }
+
+            class GetAllPropertyOverviewsQuery <<record>> {
+                +Date: DateOnly
+            }
+
+            class PropertyReadModel <<ReadModel>> <<record>> {
+                +Id: int
+                +Name: string
+            }
+
+            class RoomReadModel <<ReadModel>> <<record>> {
+                +Id: int
+                +Number: string
+            }
+
+            class StatusPeriodReadModel <<ReadModel>> <<record>> {
+                +RoomId: int
+                +Status: ERoomStatus
+                +StartDate: DateOnly
+                +EndDate: DateOnly
+                +Covers(DateOnly date): bool
+            }
+
+            class BookingReadModel <<ReadModel>> <<record>> {
+                +Id: int
+                +Code: string
+                +Status: EBookingStatus
+                +GuestName: string
+                +RoomId: int?
+                +CheckInDate: DateOnly
+                +CheckOutDate: DateOnly
+                +TotalAmount: decimal
+                +PaidAmount: decimal = 0
+                +BalanceDue: decimal
+                +Nights: IEnumerable<DateOnly>
+                +HoldsRoom: bool
+                +EarnsRevenue: bool
+                +CoversNight(DateOnly date): bool
+            }
+
+            enum "EBookingStatus" as OverviewEBookingStatus <<ValueObject>> {
+                Pending
+                Confirmed
+                CheckedIn
+                CheckedOut
+                Cancelled
+                NoShow
+            }
+
+            enum ERoomStatus <<ValueObject>> {
+                Blocked
+                OutOfService
+                NeedsCleaning
+            }
+
+            enum ERoomDayStatus <<ValueObject>> {
+                Available
+                Booked
+                Occupied
+                NeedsCleaning
+                Blocked
+                OutOfService
+            }
+
+            enum EDashboardSection <<ValueObject>> {
+                Rooms
+                Bookings
+                Inventory
+                AccessControl
+            }
+
+            class OperationalDashboard <<ValueObject>> <<record>> {
+                +PropertyId: int
+                +PropertyName: string
+                +Date: DateOnly
+                +Overview: PropertyOverview?
+                +RoomStatuses: RoomStatusSummary?
+                +TodaysArrivals: IReadOnlyList<ArrivalSummary>?
+                +DailyPerformance: IReadOnlyList<DailyPerformance>?
+                +Inventory: InventorySummary?
+                +Access: AccessSummary?
+                +UnavailableSections: IReadOnlyList<EDashboardSection>
+            }
+
+            class "PropertyOverview" as OverviewPropertyOverview <<ValueObject>> <<record>> {
+                +PropertyId: int
+                +Name: string
+                +RoomsCount: int
+                +HeldRooms: int
+                +RoomsNeedingCleaning: int
+                +RoomsOutOfOrder: int
+                +OccupancyRate: decimal
+                +AvailableRooms: int
+                +AlertsCount: int
+                +{static} For(PropertyReadModel property, IReadOnlyCollection<RoomReadModel> rooms, IEnumerable<BookingReadModel> bookings, IEnumerable<StatusPeriodReadModel> statusPeriods, DateOnly date): PropertyOverview
+            }
+
+            class RoomStatusSummary <<ValueObject>> <<record>> {
+                +Counts: IReadOnlyDictionary<ERoomDayStatus, int>
+                +{static} DayStatusOf(RoomReadModel room, IEnumerable<BookingReadModel> bookings, IEnumerable<StatusPeriodReadModel> statusPeriods, DateOnly date): ERoomDayStatus
+                +{static} For(IEnumerable<RoomReadModel> rooms, IReadOnlyCollection<BookingReadModel> bookings, IReadOnlyCollection<StatusPeriodReadModel> statusPeriods, DateOnly date): RoomStatusSummary
+            }
+
+            class ArrivalSummary <<ValueObject>> <<record>> {
+                +BookingId: int
+                +BookingCode: string
+                +GuestName: string
+                +RoomNumber: string?
+                +CheckInDate: DateOnly
+                +CheckOutDate: DateOnly
+                +Arrived: bool
+                +Status: EBookingStatus
+                +BalanceDue: decimal
+                +{static} For(IEnumerable<BookingReadModel> bookings, IEnumerable<RoomReadModel> rooms, DateOnly date): IReadOnlyList<ArrivalSummary>
+            }
+
+            class "DailyPerformance" as OverviewDailyPerformance <<ValueObject>> <<record>> {
+                +Date: DateOnly
+                +Revenue: decimal
+                +SoldRooms: int
+                +RoomsCount: int
+                +OccupancyRate: decimal
+                +{static} Series(IEnumerable<BookingReadModel> bookings, DateOnly from, DateOnly to, int roomsCount): IReadOnlyList<DailyPerformance>
+            }
+
+            class InventorySummary <<ValueObject>> <<record>> {
+                +ItemsCount: int
+                +LowStockItems: int
+                +OutOfStockItems: int
+                +ItemsToReplenish: int
+            }
+
+            class AccessSummary <<ValueObject>> <<record>> {
+                +GrantedEvents: int
+                +DeniedEvents: int
+                +TotalEvents: int
+            }
+
+            interface IOverviewReadRepository {
+                +FindRoomsByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IReadOnlyList<RoomReadModel>?>
+                +FindStatusPeriodsByPropertyIdAsync(int propertyId, DateOnly from, DateOnly to, CancellationToken cancellationToken): Task<IReadOnlyList<StatusPeriodReadModel>?>
+                +FindBookingsByPropertyIdAsync(int propertyId, DateOnly from, DateOnly to, CancellationToken cancellationToken): Task<IReadOnlyList<BookingReadModel>?>
+            }
+        }
+
+        package "Application" as OverviewApplication {
+            enum OverviewError {
+                InvalidInput
+                PropertyNotFound
+            }
+
+            interface IOverviewQueryService {
+                +Handle(GetDashboardByPropertyIdQuery query, CancellationToken cancellationToken): Task<Result<OperationalDashboard, OverviewError>>
+                +Handle(GetAllPropertyOverviewsQuery query, CancellationToken cancellationToken): Task<(IReadOnlyList<PropertyOverview>, IReadOnlyList<EDashboardSection>)>
+            }
+
+            class OverviewQueryService implements IOverviewQueryService {
+                +MaxPerformanceNights: int = 92
+                +OverviewQueryService(IOverviewReadRepository overviewReadRepository, ExternalPropertyService externalPropertyService, ExternalInventoryService externalInventoryService, ExternalAccessControlService externalAccessControlService)
+            }
+
+            class ExternalPropertyService <<ACL>> {
+                +ExternalPropertyService(IPropertyQueryService propertyQueryService)
+                +FetchPropertyByIdAsync(int propertyId, CancellationToken cancellationToken): Task<PropertyReadModel?>
+                +FetchAllPropertiesAsync(CancellationToken cancellationToken): Task<IReadOnlyList<PropertyReadModel>>
+            }
+
+            class ExternalInventoryService <<ACL>> {
+                +ExternalInventoryService(IInventoryItemQueryService inventoryItemQueryService, ILogger<ExternalInventoryService> logger)
+                +FetchInventorySummaryAsync(int propertyId, CancellationToken cancellationToken): Task<InventorySummary?>
+            }
+
+            class ExternalAccessControlService <<ACL>> {
+                +ExternalAccessControlService(IAccessEventQueryService accessEventQueryService, IClock clock, ILogger<ExternalAccessControlService> logger)
+                +FetchAccessSummaryAsync(int propertyId, DateOnly date, CancellationToken cancellationToken): Task<AccessSummary?>
+            }
+        }
+
+        package "Infrastructure" as OverviewInfrastructure {
+            class OverviewReadRepository implements IOverviewReadRepository {
+                +OverviewReadRepository(AppDbContext context, ILogger<OverviewReadRepository> logger)
+                +FindRoomsByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IReadOnlyList<RoomReadModel>?>
+                +FindStatusPeriodsByPropertyIdAsync(int propertyId, DateOnly from, DateOnly to, CancellationToken cancellationToken): Task<IReadOnlyList<StatusPeriodReadModel>?>
+                +FindBookingsByPropertyIdAsync(int propertyId, DateOnly from, DateOnly to, CancellationToken cancellationToken): Task<IReadOnlyList<BookingReadModel>?>
+            }
+            note right of OverviewReadRepository : Reads the rooms, status_periods, bookings and payments tables with read-only SQL queries
+
+            class "RoomRow" as OverviewRoomRow {
+                +Id: int
+                +Number: string
+            }
+
+            class "StatusPeriodRow" as OverviewStatusPeriodRow {
+                +RoomId: int
+                +Status: string
+                +StartDate: DateTime
+                +EndDate: DateTime
+            }
+
+            class "BookingRow" as OverviewBookingRow {
+                +Id: int
+                +Code: string
+                +Status: string
+                +GuestName: string
+                +RoomId: int?
+                +CheckInDate: DateTime
+                +CheckOutDate: DateTime
+                +TotalAmount: decimal
+                +PaidAmount: decimal
+            }
+        }
+
+        package "Interfaces.Rest" as OverviewRest {
+            class PropertyDashboardController {
+                +GetDashboardByPropertyId(int propertyId, DateOnly? date, DateOnly? from, DateOnly? to, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyOverviewsController {
+                +GetAllPropertyOverviews(DateOnly? date, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class DashboardResource <<record>> {
+                +PropertyId: int
+                +PropertyName: string
+                +Date: DateOnly
+                +Overview: PropertyOverviewResource?
+                +RoomStatuses: IReadOnlyDictionary<string, int>?
+                +TodaysArrivals: IEnumerable<ArrivalSummaryResource>?
+                +DailyPerformance: IEnumerable<DailyPerformanceResource>?
+                +Inventory: InventorySummaryResource?
+                +Access: AccessSummaryResource?
+                +UnavailableSections: IEnumerable<string>
+            }
+
+            class PropertyOverviewResource <<record>> {
+                +PropertyId: int
+                +Name: string
+                +RoomsCount: int
+                +HeldRooms: int
+                +RoomsNeedingCleaning: int
+                +RoomsOutOfOrder: int
+                +AvailableRooms: int
+                +AlertsCount: int
+                +OccupancyRate: decimal
+            }
+
+            class PropertyOverviewsResource <<record>> {
+                +Date: DateOnly
+                +Overviews: IEnumerable<PropertyOverviewResource>
+                +UnavailableSections: IEnumerable<string>
+            }
+
+            class ArrivalSummaryResource <<record>> {
+                +BookingId: int
+                +BookingCode: string
+                +GuestName: string
+                +RoomNumber: string?
+                +CheckInDate: DateOnly
+                +CheckOutDate: DateOnly
+                +Arrived: bool
+                +Status: string
+                +BalanceDue: decimal
+            }
+
+            class DailyPerformanceResource <<record>> {
+                +Date: DateOnly
+                +Revenue: decimal
+                +SoldRooms: int
+                +RoomsCount: int
+                +OccupancyRate: decimal
+            }
+
+            class InventorySummaryResource <<record>> {
+                +ItemsCount: int
+                +LowStockItems: int
+                +OutOfStockItems: int
+                +ItemsToReplenish: int
+            }
+
+            class AccessSummaryResource <<record>> {
+                +GrantedEvents: int
+                +DeniedEvents: int
+                +TotalEvents: int
+            }
+
+            class DashboardResourceFromEntityAssembler <<static>> {
+                +ToResourceFromEntity(OperationalDashboard entity): DashboardResource
+            }
+
+            class PropertyOverviewResourceFromEntityAssembler <<static>> {
+                +ToResourceFromEntity(PropertyOverview entity): PropertyOverviewResource
+                +ToResourceFromEntities(DateOnly date, IEnumerable<PropertyOverview> overviews, IEnumerable<EDashboardSection> unavailableSections): PropertyOverviewsResource
+            }
+
+            class OverviewActionResultAssembler <<static>> {
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, OverviewError> result, Func<TValue, IActionResult> successAction): IActionResult
+            }
+
+            class OverviewEnumNames <<static>> {
+                +ToName<TEnum>(TEnum value): string
+            }
+        }
+
+        package "Resources" as OverviewLocalizedResources {
+            class OverviewMessages
+            note right of OverviewMessages : Marker type of the English and Spanish messages in OverviewMessages.resx and OverviewMessages.es.resx
+        }
+
+        OperationalDashboard "1" *-- "0..1" OverviewPropertyOverview
+        OperationalDashboard "1" *-- "0..1" RoomStatusSummary
+        OperationalDashboard "1" *-- "0..*" ArrivalSummary
+        OperationalDashboard "1" *-- "0..*" OverviewDailyPerformance
+        OperationalDashboard "1" *-- "0..1" InventorySummary
+        OperationalDashboard "1" *-- "0..1" AccessSummary
+        OperationalDashboard ..> EDashboardSection
+        RoomStatusSummary ..> ERoomDayStatus
+        BookingReadModel ..> OverviewEBookingStatus
+        ArrivalSummary ..> OverviewEBookingStatus
+        StatusPeriodReadModel ..> ERoomStatus
+        OverviewPropertyOverview ..> PropertyReadModel
+        OverviewPropertyOverview ..> RoomReadModel
+        OverviewPropertyOverview ..> BookingReadModel
+        OverviewPropertyOverview ..> StatusPeriodReadModel
+        RoomStatusSummary ..> RoomReadModel
+        RoomStatusSummary ..> BookingReadModel
+        RoomStatusSummary ..> StatusPeriodReadModel
+        ArrivalSummary ..> BookingReadModel
+        ArrivalSummary ..> RoomReadModel
+        OverviewDailyPerformance ..> BookingReadModel
+        IOverviewReadRepository ..> RoomReadModel
+        IOverviewReadRepository ..> StatusPeriodReadModel
+        IOverviewReadRepository ..> BookingReadModel
+
+        IOverviewQueryService ..> OperationalDashboard
+        IOverviewQueryService ..> OverviewError
+        OverviewQueryService ..> IOverviewReadRepository
+        OverviewQueryService ..> ExternalPropertyService
+        OverviewQueryService ..> ExternalInventoryService
+        OverviewQueryService ..> ExternalAccessControlService
+        ExternalPropertyService ..> IPropertyQueryService
+        ExternalPropertyService ..> PropertyReadModel
+        ExternalInventoryService ..> IInventoryItemQueryService
+        ExternalInventoryService ..> InventorySummary
+        ExternalAccessControlService ..> IAccessEventQueryService
+        ExternalAccessControlService ..> IClock
+        ExternalAccessControlService ..> AccessSummary
+
+        OverviewReadRepository +-- OverviewRoomRow
+        OverviewReadRepository +-- OverviewStatusPeriodRow
+        OverviewReadRepository +-- OverviewBookingRow
+
+        PropertyDashboardController ..> IOverviewQueryService
+        PropertyDashboardController ..> IClock
+        PropertyDashboardController ..> OverviewActionResultAssembler
+        PropertyDashboardController ..> DashboardResourceFromEntityAssembler
+        PropertyOverviewsController ..> IOverviewQueryService
+        PropertyOverviewsController ..> IClock
+        PropertyOverviewsController ..> PropertyOverviewResourceFromEntityAssembler
+        DashboardResource "1" *-- "0..1" PropertyOverviewResource
+        DashboardResource "1" *-- "0..*" ArrivalSummaryResource
+        DashboardResource "1" *-- "0..*" DailyPerformanceResource
+        DashboardResource "1" *-- "0..1" InventorySummaryResource
+        DashboardResource "1" *-- "0..1" AccessSummaryResource
+        PropertyOverviewsResource "1" *-- "0..*" PropertyOverviewResource
+        DashboardResourceFromEntityAssembler ..> DashboardResource
+        DashboardResourceFromEntityAssembler ..> PropertyOverviewResourceFromEntityAssembler
+        DashboardResourceFromEntityAssembler ..> OverviewEnumNames
+        PropertyOverviewResourceFromEntityAssembler ..> PropertyOverviewResource
+        PropertyOverviewResourceFromEntityAssembler ..> PropertyOverviewsResource
+        PropertyOverviewResourceFromEntityAssembler ..> OverviewEnumNames
+        OverviewActionResultAssembler ..> OverviewError
+        OverviewActionResultAssembler ..> OverviewMessages
     }
 
 @enduml
