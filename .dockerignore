@@ -1,0 +1,10 @@
+# Send only what the image needs to build the API
+*
+!global.json
+!HosteraBackend.API/
+
+# Build output and local settings inside the project
+HosteraBackend.API/**/[Bb]in/
+HosteraBackend.API/**/[Oo]bj/
+HosteraBackend.API/**/*.user
+HosteraBackend.API/**/appsettings.Local.json
