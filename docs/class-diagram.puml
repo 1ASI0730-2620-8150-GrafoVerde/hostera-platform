@@ -1,9 +1,9 @@
-@startuml Hostera Platform Class Diagram - Rooms, Bookings, Access Control facade and Shared Bounded Contexts
+@startuml Hostera Platform Class Diagram - Rooms, Bookings, Inventory, Access Control facade and Shared Bounded Contexts
 
     title
         Hostera Platform
         Class Diagram
-        Rooms, Bookings and Shared Bounded Contexts
+        Rooms, Bookings, Inventory and Shared Bounded Contexts
         with the Access Control facade used by Bookings
     end title
 
@@ -1056,6 +1056,334 @@
         BookingsController ..> BookingETag
         BookingStaysController ..> BookingETag
         BookingPaymentsController ..> BookingETag
+    }
+
+    package "Inventory Bounded Context" as Inventory {
+        package "Domain" as InventoryDomain {
+            class InventoryItem <<Aggregate>> implements IAuditableEntity {
+                +InventoryItem(CreateInventoryItemCommand command)
+                +Id: int
+                +PropertyId: int
+                +Code: InventoryCode
+                +Name: string
+                +Category: EInventoryCategory
+                +Unit: EInventoryUnit
+                +PrimaryLocationId: int
+                +LowStockThreshold: decimal
+                +Stocks: IReadOnlyCollection<InventoryStock>
+                +Adjustments: IReadOnlyCollection<StockAdjustment>
+                +TotalQuantity: decimal
+                +StockCondition: EStockCondition
+                +QuantityAt(int storageLocationId): decimal
+                +Update(UpdateInventoryItemCommand command): void
+                +IsAssignedTo(int storageLocationId): bool
+                +UnassignStorageLocation(UnassignStorageLocationCommand command): void
+                +AdjustStock(AdjustStockCommand command, DateTimeOffset recordedAt): IReadOnlyList<StockAdjustment>
+            }
+
+            class InventoryStock <<Entity>> {
+                +InventoryStock(int storageLocationId)
+                +Id: int
+                +InventoryItemId: int
+                +StorageLocationId: int
+                +Quantity: decimal
+            }
+
+            class StockAdjustment <<Entity>> {
+                +Id: int
+                +InventoryItemId: int
+                +Operation: EStockOperation
+                +QuantityChange: decimal
+                +StorageLocationId: int
+                +Reason: EStockAdjustmentReason
+                +Note: string?
+                +Operator: string
+                +RecordedAt: DateTimeOffset
+                +TransferId: Guid?
+            }
+
+            class StorageLocation <<Aggregate>> implements IAuditableEntity {
+                +StorageLocation(CreateStorageLocationCommand command)
+                +Id: int
+                +PropertyId: int
+                +Code: InventoryCode
+                +Name: string
+                +Type: EStorageLocationType
+                +Area: string
+                +ResponsibleTeam: string
+                +Description: string?
+                +Update(UpdateStorageLocationCommand command): void
+            }
+
+            class InventoryCode <<ValueObject>> <<record>> {
+                +InventoryCode(string value)
+                +Value: string
+                +ToString(): string
+            }
+
+            class StockQuantity <<ValueObject>> <<record>> {
+                +StockQuantity(decimal value, EInventoryUnit unit)
+                +Value: decimal
+                +ToString(): string
+            }
+
+            enum EInventoryCategory <<ValueObject>> {
+                Linen
+                GuestAmenities
+                CleaningSupplies
+                AccessSupplies
+            }
+
+            enum EInventoryUnit <<ValueObject>> {
+                Units
+                Liters
+                Kilograms
+            }
+
+            enum EStockCondition <<ValueObject>> {
+                InStock
+                LowStock
+                OutOfStock
+            }
+
+            enum EStockOperation <<ValueObject>> {
+                In
+                Out
+                Transfer
+            }
+
+            enum EStockAdjustmentReason <<ValueObject>> {
+                OpeningStock
+                SupplierDelivery
+                ReturnToStorage
+                InventoryCorrection
+                OperationalConsumption
+                DamagedOrExpired
+                LostItem
+                InternalTransfer
+                Other
+            }
+
+            class StockAdjustmentReasonExtensions <<static>> {
+                +IsValidFor(EStockAdjustmentReason reason, EStockOperation operation): bool
+            }
+
+            enum EStorageLocationType <<ValueObject>> {
+                Warehouse
+                Closet
+                FrontDesk
+                ServiceArea
+            }
+
+            class CreateInventoryItemCommand <<record>> {
+                +PropertyId: int
+                +Code: InventoryCode
+                +Name: string
+                +Category: EInventoryCategory
+                +Unit: EInventoryUnit
+                +PrimaryLocationId: int
+                +LowStockThreshold: decimal
+                +OpeningQuantity: decimal = 0
+                +Operator: string? = null
+            }
+
+            class UpdateInventoryItemCommand <<record>> {
+                +InventoryItemId: int
+                +Name: string
+                +Category: EInventoryCategory
+                +Unit: EInventoryUnit
+                +PrimaryLocationId: int
+                +LowStockThreshold: decimal
+            }
+
+            class AdjustStockCommand <<record>> {
+                +InventoryItemId: int
+                +Operation: EStockOperation
+                +Quantity: decimal
+                +StorageLocationId: int
+                +DestinationStorageLocationId: int?
+                +Reason: EStockAdjustmentReason
+                +Note: string?
+                +Operator: string
+            }
+
+            class UnassignStorageLocationCommand <<record>> {
+                +InventoryItemId: int
+                +StorageLocationId: int
+            }
+
+            class CreateStorageLocationCommand <<record>> {
+                +PropertyId: int
+                +Code: InventoryCode
+                +Name: string
+                +Type: EStorageLocationType
+                +Area: string
+                +ResponsibleTeam: string
+                +Description: string?
+            }
+
+            class UpdateStorageLocationCommand <<record>> {
+                +StorageLocationId: int
+                +Name: string
+                +Type: EStorageLocationType
+                +Area: string
+                +ResponsibleTeam: string
+                +Description: string?
+            }
+
+            class DeleteStorageLocationCommand <<record>> {
+                +StorageLocationId: int
+            }
+
+            interface IInventoryItemRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<InventoryItem>>
+                +ExistsByPropertyIdAndCodeAsync(int propertyId, InventoryCode code, CancellationToken cancellationToken): Task<bool>
+                +ExistsByStorageLocationIdAsync(int storageLocationId, CancellationToken cancellationToken): Task<bool>
+            }
+
+            interface IStorageLocationRepository extends IBaseRepository {
+                +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<StorageLocation>>
+                +ExistsByPropertyIdAndCodeAsync(int propertyId, InventoryCode code, CancellationToken cancellationToken): Task<bool>
+            }
+        }
+
+        package "Application" as InventoryApplication {
+            enum InventoryError {
+                InvalidInput
+                StorageLocationNotFound
+                InventoryItemNotFound
+                StorageLocationFromAnotherProperty
+                DuplicateStorageLocationCode
+                DuplicateInventoryItemCode
+                StorageLocationInUse
+                StorageLocationNotAssigned
+                StorageLocationAssignmentInUse
+                UnitChangeNotAllowed
+                InvalidAdjustmentReason
+                InsufficientStock
+                UnexpectedError
+            }
+
+            interface IInventoryItemCommandService {
+                +Handle(CreateInventoryItemCommand command, CancellationToken cancellationToken): Task<Result<InventoryItem, InventoryError>>
+                +Handle(UpdateInventoryItemCommand command, CancellationToken cancellationToken): Task<Result<InventoryItem, InventoryError>>
+                +Handle(AdjustStockCommand command, CancellationToken cancellationToken): Task<Result<InventoryItem, InventoryError>>
+                +Handle(UnassignStorageLocationCommand command, CancellationToken cancellationToken): Task<Result<InventoryItem, InventoryError>>
+            }
+
+            interface IInventoryItemQueryService {
+                +Handle(GetAllInventoryItemsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<InventoryItem>>
+                +Handle(GetInventoryItemByIdQuery query, CancellationToken cancellationToken): Task<InventoryItem?>
+            }
+
+            interface IStorageLocationCommandService {
+                +Handle(CreateStorageLocationCommand command, CancellationToken cancellationToken): Task<Result<StorageLocation, InventoryError>>
+                +Handle(UpdateStorageLocationCommand command, CancellationToken cancellationToken): Task<Result<StorageLocation, InventoryError>>
+                +Handle(DeleteStorageLocationCommand command, CancellationToken cancellationToken): Task<Result<StorageLocation, InventoryError>>
+            }
+
+            interface IStorageLocationQueryService {
+                +Handle(GetAllStorageLocationsByPropertyIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<StorageLocation>>
+                +Handle(GetStorageLocationByIdQuery query, CancellationToken cancellationToken): Task<StorageLocation?>
+            }
+
+            class InventoryItemCommandService implements IInventoryItemCommandService {
+                +InventoryItemCommandService(IInventoryItemRepository inventoryItemRepository, IStorageLocationRepository storageLocationRepository, IUnitOfWork unitOfWork)
+            }
+
+            class InventoryItemQueryService implements IInventoryItemQueryService {
+                +InventoryItemQueryService(IInventoryItemRepository inventoryItemRepository)
+            }
+
+            class StorageLocationCommandService implements IStorageLocationCommandService {
+                +StorageLocationCommandService(IStorageLocationRepository storageLocationRepository, IInventoryItemRepository inventoryItemRepository, IUnitOfWork unitOfWork)
+            }
+
+            class StorageLocationQueryService implements IStorageLocationQueryService {
+                +StorageLocationQueryService(IStorageLocationRepository storageLocationRepository)
+            }
+        }
+
+        package "Infrastructure" as InventoryInfrastructure {
+            class InventoryItemRepository extends BaseRepository implements IInventoryItemRepository
+            class StorageLocationRepository extends BaseRepository implements IStorageLocationRepository
+        }
+
+        package "Interfaces.Rest" as InventoryRest {
+            class PropertyInventoryItemsController {
+                +GetInventoryItemsByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+                +CreateInventoryItem(int propertyId, CreateInventoryItemResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class InventoryItemsController {
+                +GetInventoryItemById(int inventoryItemId, CancellationToken cancellationToken): Task<IActionResult>
+                +UpdateInventoryItem(int inventoryItemId, UpdateInventoryItemResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +AdjustStock(int inventoryItemId, AdjustStockResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +UnassignStorageLocation(int inventoryItemId, int storageLocationId, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class PropertyStorageLocationsController {
+                +GetStorageLocationsByPropertyId(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
+                +CreateStorageLocation(int propertyId, CreateStorageLocationResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class StorageLocationsController {
+                +GetStorageLocationById(int storageLocationId, CancellationToken cancellationToken): Task<IActionResult>
+                +UpdateStorageLocation(int storageLocationId, UpdateStorageLocationResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +DeleteStorageLocation(int storageLocationId, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class InventoryEnumNames <<static>> {
+                +ToName<TEnum>(TEnum value): string
+                +Parse<TEnum>(string? name, string field): TEnum
+            }
+
+            class InventoryActionResultAssembler <<static>> {
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, InventoryError> result, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromQueryResult<TValue>(ControllerBase controller, TValue? value, InventoryError notFoundError, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromInvalidResource(ControllerBase controller, ArgumentException exception): IActionResult
+            }
+        }
+
+        InventoryItem "1" *-- "1..*" InventoryStock : stocks >
+        InventoryItem "1" *-- "0..*" StockAdjustment : adjustments >
+        InventoryItem *-- InventoryCode
+        StorageLocation *-- InventoryCode
+        InventoryItem "0..*" --> "1" StorageLocation : primary location >
+        InventoryStock "0..*" --> "1" StorageLocation
+        StockAdjustment "0..*" --> "1" StorageLocation
+        InventoryItem ..> StockQuantity
+        InventoryItem ..> EInventoryCategory
+        InventoryItem ..> EInventoryUnit
+        InventoryItem ..> EStockCondition
+        InventoryItem ..> StockAdjustmentReasonExtensions
+        StockQuantity ..> EInventoryUnit
+        StockAdjustment ..> EStockOperation
+        StockAdjustment ..> EStockAdjustmentReason
+        StockAdjustmentReasonExtensions ..> EStockAdjustmentReason
+        StockAdjustmentReasonExtensions ..> EStockOperation
+        StorageLocation ..> EStorageLocationType
+
+        InventoryItemCommandService ..> IInventoryItemRepository
+        InventoryItemCommandService ..> IStorageLocationRepository
+        InventoryItemQueryService ..> IInventoryItemRepository
+        StorageLocationCommandService ..> IStorageLocationRepository
+        StorageLocationCommandService ..> IInventoryItemRepository
+        StorageLocationQueryService ..> IStorageLocationRepository
+
+        PropertyInventoryItemsController ..> IInventoryItemCommandService
+        PropertyInventoryItemsController ..> IInventoryItemQueryService
+        InventoryItemsController ..> IInventoryItemCommandService
+        InventoryItemsController ..> IInventoryItemQueryService
+        PropertyStorageLocationsController ..> IStorageLocationCommandService
+        PropertyStorageLocationsController ..> IStorageLocationQueryService
+        StorageLocationsController ..> IStorageLocationCommandService
+        StorageLocationsController ..> IStorageLocationQueryService
+        PropertyInventoryItemsController ..> InventoryActionResultAssembler
+        InventoryItemsController ..> InventoryActionResultAssembler
+        PropertyStorageLocationsController ..> InventoryActionResultAssembler
+        StorageLocationsController ..> InventoryActionResultAssembler
+        InventoryActionResultAssembler ..> InventoryError
     }
 
     package "Access Control Bounded Context" as AccessControl {
