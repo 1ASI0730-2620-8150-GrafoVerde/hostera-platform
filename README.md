@@ -169,7 +169,7 @@ Browser clients can read the `ETag`, `X-Total-Count`, and `Idempotent-Replayed` 
 
 ## Error responses
 
-Errors use the RFC 9457 problem details format. The `title` holds a stable error code, such as `DuplicateRoomTypeName`, and `detail` explains it:
+Errors use the RFC 9457 problem details format. The `title` holds a stable error code, such as `DuplicateRoomTypeName`, and `detail` explains it in the language of the request:
 
 ```json
 {
@@ -184,6 +184,27 @@ Errors use the RFC 9457 problem details format. The `title` holds a stable error
 - **404 Not Found**: the resource, or the property it belongs to, does not exist.
 - **409 Conflict**: the request breaks a business rule, such as a duplicate name or insufficient stock, or the booking changed after it was read.
 - **422 Unprocessable Content**: a payment amount is not valid or exceeds the balance due.
+
+### Language of the messages
+
+The `detail` is written in English or Spanish, following the `Accept-Language` header of the request. Any other language, or a request without the header, gets English. The `title` never changes with the language, so clients can recognize the error by its code and show their own text:
+
+```http
+GET /api/v1/rooms/999 HTTP/1.1
+Accept-Language: es
+```
+
+```json
+{
+  "title": "RoomNotFound",
+  "status": 404,
+  "detail": "No se encontró la habitación indicada."
+}
+```
+
+- The texts of each bounded context live in `<Context>/Resources/<Context>Messages.resx` (English) and `<Context>Messages.es.resx` (Spanish), keyed by error type and value, such as `RoomError.RoomNotFound`. Shared texts live in `Shared/Resources/CommonMessages`.
+- A request body that fails validation returns the `InvalidInput` title with a translated `detail`. The messages of each field in `errors` stay in English.
+- Only the texts change with the language. Numbers and dates are always read in the English format, such as `120.50` and `2026-11-20`.
 
 ## Project structure
 
