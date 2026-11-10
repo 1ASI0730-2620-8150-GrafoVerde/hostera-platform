@@ -127,7 +127,7 @@ dotnet run --project HosteraBackend.API
 
 ### 3) Explore the API with Scalar
 
-In the Development environment, Scalar is available at:
+In the Development environment, or wherever `Hostera:PublishApiReference` is `true`, Scalar is available at:
 
 - `http://localhost:5264/scalar`
 - `https://localhost:7240/scalar`
@@ -148,9 +148,9 @@ This removes the data created through the API.
 
 ### Demonstration data
 
-In the Development environment, a new database receives a demonstration hotel the first time the API starts. Both properties get the room types, rooms, rate plans, storage locations, inventory items, and staff credentials of the frontend mock data, and their bookings, payments, room statuses, and access events are placed around the current day: stays from the last weeks, guests staying now, today's arrivals, and bookings ahead. A database that already has room types is left unchanged.
+A new database receives a demonstration hotel the first time the API starts when `Hostera:SeedDemoData` is `true`, which is the default in the Development environment. Both properties get the room types, rooms, rate plans, storage locations, inventory items, and staff credentials of the frontend mock data, and their bookings, payments, room statuses, and access events are placed around the current day: stays from the last weeks, guests staying now, today's arrivals, and bookings ahead. A database that already has room types is left unchanged.
 
-To start with an empty database instead, set `Hostera:SeedDemoData` to `false` in `appsettings.Development.json` or with the `Hostera__SeedDemoData=false` environment variable. To load the demonstration data again, drop the database and restart the API.
+To start with an empty database instead, set `Hostera:SeedDemoData` to `false` in `appsettings.Development.json` or with the `Hostera__SeedDemoData=false` environment variable. In other environments, such as the deployed API, set `Hostera__SeedDemoData=true` to load it. To load the demonstration data again, drop the database and restart the API.
 
 ## Concurrency
 
@@ -237,3 +237,49 @@ Each bounded context folder contains `Domain/`, `Application/`, `Infrastructure/
 ```bash
 dotnet build hostera-backend.sln
 ```
+
+## Deployment
+
+The API is published as a Docker container on [Render](https://render.com/), and its MySQL database is hosted on [Aiven for MySQL](https://aiven.io/mysql), because Render does not offer managed MySQL. The `Dockerfile` builds the API with the .NET 10 SDK and runs it on the ASP.NET Core 10 runtime image, which listens on port `8080`.
+
+### Run the container locally
+
+```bash
+docker build -t hostera-platform .
+docker run --rm -p 8080:8080 \
+  -e "ConnectionStrings__DefaultConnection=server=host.docker.internal;user=root;password=$HOSTERA_DB_PASSWORD;database=hostera" \
+  -e Hostera__SeedDemoData=true \
+  -e Hostera__PublishApiReference=true \
+  hostera-platform
+```
+
+On Linux, add `--add-host=host.docker.internal:host-gateway` so the container reaches the MySQL server of the host. The API is then available at `http://localhost:8080/api/v1` and Scalar at `http://localhost:8080/scalar`.
+
+### Create the database on Aiven
+
+1. Create a free **Aiven for MySQL** service in the region closest to the Render service.
+2. From the service overview, copy the host, port, user (`avnadmin`), and password.
+3. Build the connection string. The API creates the `hostera` database and its tables on the first start, and Aiven requires an encrypted connection:
+
+   ```text
+   server=<host>;port=<port>;user=avnadmin;password=<password>;database=hostera;SslMode=Required
+   ```
+
+### Deploy to Render
+
+`render.yaml` describes the web service as a Render Blueprint: a free Docker web service built from the `main` branch, with `/api/v1/properties` as its health check.
+
+1. In the Render dashboard, choose **New > Blueprint** and select this repository.
+2. When Render asks for `ConnectionStrings__DefaultConnection`, paste the Aiven connection string. It is stored as a secret and never committed.
+3. Apply the Blueprint. Render builds the image, starts the container, and redeploys it on every push to `main`.
+
+| Variable | Value | Purpose |
+| --- | --- | --- |
+| `ASPNETCORE_ENVIRONMENT` | `Production` | Runs the API with the production settings. |
+| `PORT` | `8080` | Tells Render the port the container listens on. |
+| `ConnectionStrings__DefaultConnection` | Aiven connection string | Connects the API to its MySQL database. |
+| `Hostera__SeedDemoData` | `true` | Loads the demonstration hotel into the new database. |
+| `Hostera__PublishApiReference` | `true` | Publishes the OpenAPI document and the Scalar reference. |
+
+After the deployment, check that `https://<service>.onrender.com/api/v1/properties` returns `200 OK`, and set `VITE_HOSTERA_PLATFORM_API_URL` of the frontend to `https://<service>.onrender.com/api/v1`. A free Render service sleeps after a period without requests, so the first request after a pause can take close to a minute.
+
