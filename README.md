@@ -283,3 +283,7 @@ On Linux, add `--add-host=host.docker.internal:host-gateway` so the container re
 
 After the deployment, check that `https://<service>.onrender.com/api/v1/properties` returns `200 OK`, and set `VITE_HOSTERA_PLATFORM_API_URL` of the frontend to `https://<service>.onrender.com/api/v1`. A free Render service sleeps after a period without requests, so the first request after a pause can take close to a minute.
 
+
+## License
+
+Hostera Platform is released under the [MIT License](LICENSE.md).
