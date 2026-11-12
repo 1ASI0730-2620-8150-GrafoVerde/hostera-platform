@@ -22,4 +22,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dockerfile and Render Blueprint to deploy the API with a MySQL database on Aiven.
 - Documentation: README, architecture decision records, class diagram of every bounded context, technical stories, and the MIT license.
 
-[1.0.0]: https://github.com/1ASI0730-2620-8150-GrafoVerde/hostera-platform-2/releases/tag/1.0.0
+[1.0.0]: https://github.com/1ASI0730-2620-8150-GrafoVerde/hostera-platform/releases/tag/1.0.0
