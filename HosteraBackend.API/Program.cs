@@ -25,6 +25,7 @@ using HosteraBackend.API.Iam.Domain.Repositories;
 using HosteraBackend.API.Iam.Infrastructure.Hashing.BCrypt.Services;
 using HosteraBackend.API.Iam.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Iam.Infrastructure.Pipeline.Accessors;
+using HosteraBackend.API.Iam.Infrastructure.Pipeline.Middleware.Extensions;
 using HosteraBackend.API.Iam.Infrastructure.Tokens.Jwt.Configuration;
 using HosteraBackend.API.Iam.Infrastructure.Tokens.Jwt.Services;
 using HosteraBackend.API.Iam.Interfaces.ACL;
@@ -223,6 +224,10 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
     .AddSupportedUICultures(supportedUiCultures));
 
 app.UseCors("AllowAllPolicy");
+
+// Require a valid bearer token on every controller endpoint not marked with [AllowAnonymous]. It runs after CORS, so
+// preflight requests are answered first and rejected requests still carry the CORS headers.
+app.UseRequestAuthorization();
 
 app.UseHttpsRedirection();
 
