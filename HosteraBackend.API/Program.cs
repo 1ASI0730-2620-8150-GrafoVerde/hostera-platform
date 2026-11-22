@@ -6,6 +6,7 @@ using HosteraBackend.API.AccessControl.Application.QueryServices;
 using HosteraBackend.API.AccessControl.Domain.Repositories;
 using HosteraBackend.API.AccessControl.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.AccessControl.Interfaces.ACL;
+using HosteraBackend.API.AccessControl.Interfaces.Rest.Authorization;
 using HosteraBackend.API.Bookings.Application.ACL;
 using HosteraBackend.API.Bookings.Application.CommandServices;
 using HosteraBackend.API.Bookings.Application.Internal.CommandServices;
@@ -156,6 +157,7 @@ builder.Services.AddScoped<IAccessEventRepository, AccessEventRepository>();
 builder.Services.AddScoped<IAccessEventCommandService, AccessEventCommandService>();
 builder.Services.AddScoped<IAccessEventQueryService, AccessEventQueryService>();
 builder.Services.AddScoped<IAccessControlContextFacade, AccessControlContextFacade>();
+builder.Services.AddScoped<IPropertyScopeResolver, AccessControlPropertyScopeResolver>();
 
 // Rooms Bounded Context
 builder.Services.AddScoped<IRatePlanRepository, RatePlanRepository>();

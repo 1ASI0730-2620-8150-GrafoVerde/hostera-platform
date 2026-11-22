@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Authorization;
 
 namespace HosteraBackend.API.AccessControl.Interfaces.Rest.Resources;
 
@@ -15,4 +16,4 @@ public record RecordAccessEventResource(
     [Required] string CardId,
     [Required] string AccessPoint,
     [Range(1, int.MaxValue)] int? RoomId,
-    DateTimeOffset? OccurredAt);
+    DateTimeOffset? OccurredAt) : IPropertyScopedResource;
