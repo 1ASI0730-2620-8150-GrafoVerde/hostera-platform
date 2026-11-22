@@ -25,6 +25,7 @@ using HosteraBackend.API.Iam.Domain.Repositories;
 using HosteraBackend.API.Iam.Infrastructure.Hashing.BCrypt.Services;
 using HosteraBackend.API.Iam.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Iam.Infrastructure.Pipeline.Accessors;
+using HosteraBackend.API.Iam.Infrastructure.Pipeline.Filters;
 using HosteraBackend.API.Iam.Infrastructure.Pipeline.Middleware.Extensions;
 using HosteraBackend.API.Iam.Infrastructure.Tokens.Jwt.Configuration;
 using HosteraBackend.API.Iam.Infrastructure.Tokens.Jwt.Services;
@@ -71,7 +72,11 @@ builder.Services.AddRouting(options => options.LowercaseUrls = true);
 
 // Configure Kebab-Case route naming convention for controllers
 builder.Services.AddControllers(options =>
-        options.Conventions.Add(new KebabCaseRouteNamingConvention()))
+    {
+        options.Conventions.Add(new KebabCaseRouteNamingConvention());
+        // Every action only reaches the properties of the organization of the signed-in user
+        options.Filters.Add<PropertyAccessFilter>();
+    })
     .ConfigureApiBehaviorOptions(options =>
         options.InvalidModelStateResponseFactory = InvalidModelStateProblemFactory.ToActionResultFromInvalidModelState);
 
