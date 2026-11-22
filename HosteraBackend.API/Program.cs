@@ -15,6 +15,19 @@ using HosteraBackend.API.Bookings.Application.QueryServices;
 using HosteraBackend.API.Bookings.Domain.Repositories;
 using HosteraBackend.API.Bookings.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Bookings.Interfaces.ACL;
+using HosteraBackend.API.Iam.Application.ACL;
+using HosteraBackend.API.Iam.Application.CommandServices;
+using HosteraBackend.API.Iam.Application.Internal.CommandServices;
+using HosteraBackend.API.Iam.Application.Internal.OutboundServices;
+using HosteraBackend.API.Iam.Application.Internal.QueryServices;
+using HosteraBackend.API.Iam.Application.QueryServices;
+using HosteraBackend.API.Iam.Domain.Repositories;
+using HosteraBackend.API.Iam.Infrastructure.Hashing.BCrypt.Services;
+using HosteraBackend.API.Iam.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Iam.Infrastructure.Pipeline.Accessors;
+using HosteraBackend.API.Iam.Infrastructure.Tokens.Jwt.Configuration;
+using HosteraBackend.API.Iam.Infrastructure.Tokens.Jwt.Services;
+using HosteraBackend.API.Iam.Interfaces.ACL;
 using HosteraBackend.API.Inventory.Application.CommandServices;
 using HosteraBackend.API.Inventory.Application.Internal.CommandServices;
 using HosteraBackend.API.Inventory.Application.Internal.QueryServices;
@@ -44,6 +57,8 @@ using HosteraBackend.API.Shared.Infrastructure.Seeding;
 using HosteraBackend.API.Shared.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using IamExternalPropertyService =
+    HosteraBackend.API.Iam.Application.Internal.OutboundServices.ACL.ExternalPropertyService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -158,6 +173,24 @@ builder.Services.AddScoped<ExternalPropertyService>();
 builder.Services.AddScoped<ExternalInventoryService>();
 builder.Services.AddScoped<ExternalAccessControlService>();
 builder.Services.AddScoped<IOverviewQueryService, OverviewQueryService>();
+
+// IAM Bounded Context
+
+// The secret signs the bearer tokens; deployed environments set it with the TokenSettings__Secret variable
+builder.Services.AddOptions<TokenSettings>()
+    .Bind(builder.Configuration.GetSection(TokenSettings.SectionName))
+    .Validate(settings => settings.HasValidSecret,
+        $"{TokenSettings.SectionName}:Secret must have at least {TokenSettings.SecretMinBytes} bytes.")
+    .ValidateOnStart();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IHashingService, HashingService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IamExternalPropertyService>();
+builder.Services.AddScoped<IUserCommandService, UserCommandService>();
+builder.Services.AddScoped<IUserQueryService, UserQueryService>();
+builder.Services.AddScoped<IAuthenticatedUserAccessor, AuthenticatedUserAccessor>();
+builder.Services.AddScoped<IIamContextFacade, IamContextFacade>();
 
 var app = builder.Build();
 
