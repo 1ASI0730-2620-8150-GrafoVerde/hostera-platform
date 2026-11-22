@@ -17,6 +17,6 @@ public static class UserResourceFromEntityAssembler
     public static UserResource ToResourceFromEntity(User entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
-        return new UserResource(entity.Id, entity.Username);
+        return new UserResource(entity.Id, entity.Username, entity.OrganizationId);
     }
 }

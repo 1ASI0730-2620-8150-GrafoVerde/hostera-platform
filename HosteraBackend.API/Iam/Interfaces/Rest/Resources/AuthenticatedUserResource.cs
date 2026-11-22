@@ -5,5 +5,6 @@ namespace HosteraBackend.API.Iam.Interfaces.Rest.Resources;
 /// </summary>
 /// <param name="Id">The unique identifier of the user</param>
 /// <param name="Username">The username of the user</param>
+/// <param name="OrganizationId">The identifier of the organization whose properties the user operates</param>
 /// <param name="Token">The bearer token to send in the Authorization header of the next requests</param>
-public record AuthenticatedUserResource(int Id, string Username, string Token);
+public record AuthenticatedUserResource(int Id, string Username, int OrganizationId, string Token);

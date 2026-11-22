@@ -20,6 +20,6 @@ public static class AuthenticatedUserResourceFromEntityAssembler
     {
         ArgumentNullException.ThrowIfNull(entity);
         ArgumentException.ThrowIfNullOrEmpty(token);
-        return new AuthenticatedUserResource(entity.Id, entity.Username, token);
+        return new AuthenticatedUserResource(entity.Id, entity.Username, entity.OrganizationId, token);
     }
 }
