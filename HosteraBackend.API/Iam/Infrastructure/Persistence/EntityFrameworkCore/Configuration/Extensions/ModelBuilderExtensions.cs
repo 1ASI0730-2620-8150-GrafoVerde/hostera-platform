@@ -18,10 +18,12 @@ public static class ModelBuilderExtensions
         {
             user.HasKey(u => u.Id);
             user.Property(u => u.Id).IsRequired().ValueGeneratedOnAdd();
+            user.Property(u => u.OrganizationId).IsRequired();
             user.Property(u => u.Username).IsRequired().HasMaxLength(User.UsernameMaxLength);
             // BCrypt hashes are 60 characters long
             user.Property(u => u.PasswordHash).IsRequired().HasMaxLength(100);
             user.HasIndex(u => u.Username).IsUnique();
+            user.HasIndex(u => u.OrganizationId);
         });
     }
 }

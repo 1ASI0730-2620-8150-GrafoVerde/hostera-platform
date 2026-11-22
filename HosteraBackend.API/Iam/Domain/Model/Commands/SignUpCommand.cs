@@ -5,7 +5,8 @@ namespace HosteraBackend.API.Iam.Domain.Model.Commands;
 /// </summary>
 /// <param name="Username">The username of the new user</param>
 /// <param name="Password">The password of the new user</param>
-public record SignUpCommand(string Username, string Password)
+/// <param name="OrganizationId">The identifier of the organization of the user, or null to start a new organization</param>
+public record SignUpCommand(string Username, string Password, int? OrganizationId = null)
 {
     /// <summary>
     ///     The minimum number of characters of a password.

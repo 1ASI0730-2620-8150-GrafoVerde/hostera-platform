@@ -1,7 +1,7 @@
 namespace HosteraBackend.API.Iam.Domain.Model.Aggregates;
 
 /// <summary>
-///     Represents a user who signs in to operate the Hostera platform.
+///     Represents a user who signs in to operate the properties of an organization on the Hostera platform.
 /// </summary>
 /// <remarks>
 ///     The user keeps only the hash of the password, never the password itself.
@@ -23,22 +23,33 @@ public partial class User
     }
 
     /// <summary>
-    ///     Creates a user with a username and the hash of the password.
+    ///     Creates a user of an organization with a username and the hash of the password.
     /// </summary>
     /// <param name="username">The username. Surrounding spaces are removed.</param>
     /// <param name="passwordHash">The hash of the password.</param>
-    /// <exception cref="ArgumentException">Thrown when the username or the password hash is empty, or the username is too long.</exception>
-    public User(string username, string passwordHash)
+    /// <param name="organizationId">The identifier of the organization of the user.</param>
+    /// <exception cref="ArgumentException">
+    ///     Thrown when the username or the password hash is empty, the username is too long, or the organization
+    ///     identifier is not positive.
+    /// </exception>
+    public User(string username, string passwordHash, int organizationId)
     {
         Username = NormalizeUsername(username);
         ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(organizationId);
         PasswordHash = passwordHash;
+        OrganizationId = organizationId;
     }
 
     /// <summary>
     ///     Gets the server-generated identifier for this user.
     /// </summary>
     public int Id { get; private set; }
+
+    /// <summary>
+    ///     Gets the identifier of the organization whose properties the user operates.
+    /// </summary>
+    public int OrganizationId { get; private set; }
 
     /// <summary>
     ///     Gets the username the user signs in with.

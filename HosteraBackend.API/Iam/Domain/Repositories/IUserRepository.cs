@@ -46,4 +46,11 @@ public interface IUserRepository : IBaseRepository<User>
     /// <param name="cancellationToken">Token to cancel the asynchronous operation.</param>
     /// <returns>True if a user uses the username, false otherwise.</returns>
     Task<bool> ExistsByUsernameAsync(string username, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Find the highest organization identifier of the users
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the asynchronous operation.</param>
+    /// <returns>The highest organization identifier, or zero when there are no users.</returns>
+    Task<int> FindLatestOrganizationIdAsync(CancellationToken cancellationToken = default);
 }

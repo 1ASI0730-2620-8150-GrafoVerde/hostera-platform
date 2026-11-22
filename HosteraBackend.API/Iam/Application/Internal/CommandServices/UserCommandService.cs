@@ -1,6 +1,7 @@
 using HosteraBackend.API.Iam.Application.CommandServices;
 using HosteraBackend.API.Iam.Application.Errors;
 using HosteraBackend.API.Iam.Application.Internal.OutboundServices;
+using HosteraBackend.API.Iam.Application.Internal.OutboundServices.ACL;
 using HosteraBackend.API.Iam.Domain.Model.Aggregates;
 using HosteraBackend.API.Iam.Domain.Model.Commands;
 using HosteraBackend.API.Iam.Domain.Repositories;
@@ -21,6 +22,9 @@ namespace HosteraBackend.API.Iam.Application.Internal.CommandServices;
 /// <param name="hashingService">
 ///     The <see cref="IHashingService" /> that hashes and verifies passwords.
 /// </param>
+/// <param name="externalPropertyService">
+///     The <see cref="ExternalPropertyService" /> that reads the organizations that own properties.
+/// </param>
 /// <param name="unitOfWork">
 ///     The <see cref="IUnitOfWork" /> to use.
 /// </param>
@@ -28,6 +32,7 @@ public class UserCommandService(
     IUserRepository userRepository,
     ITokenService tokenService,
     IHashingService hashingService,
+    ExternalPropertyService externalPropertyService,
     IUnitOfWork unitOfWork)
     : IUserCommandService
 {
@@ -51,15 +56,21 @@ public class UserCommandService(
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     A user signed up without an organization starts a new one, whose identifier follows every organization
+    ///     that already has users or properties. It owns no property until one is registered for it.
+    /// </remarks>
     public async Task<Result<User, IamError>> Handle(SignUpCommand command, CancellationToken cancellationToken)
     {
         if (command.Password is not { Length: >= SignUpCommand.PasswordMinLength and <= SignUpCommand.PasswordMaxLength })
             return new Result<User, IamError>.Failure(IamError.InvalidInput);
 
+        var organizationId = command.OrganizationId ?? await NextOrganizationIdAsync(cancellationToken);
+
         User user;
         try
         {
-            user = new User(command.Username, hashingService.HashPassword(command.Password));
+            user = new User(command.Username, hashingService.HashPassword(command.Password), organizationId);
         }
         catch (ArgumentException)
         {
@@ -72,5 +83,12 @@ public class UserCommandService(
         await userRepository.AddAsync(user, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
         return new Result<User, IamError>.Success(user);
+    }
+
+    private async Task<int> NextOrganizationIdAsync(CancellationToken cancellationToken)
+    {
+        var latestUserOrganizationId = await userRepository.FindLatestOrganizationIdAsync(cancellationToken);
+        var latestPropertyOrganizationId = await externalPropertyService.FetchLatestOrganizationIdAsync(cancellationToken);
+        return Math.Max(latestUserOrganizationId, latestPropertyOrganizationId) + 1;
     }
 }

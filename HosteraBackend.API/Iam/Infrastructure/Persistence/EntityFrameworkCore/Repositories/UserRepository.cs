@@ -55,4 +55,10 @@ public class UserRepository(AppDbContext context) : BaseRepository<User>(context
     {
         return await Context.Set<User>().AnyAsync(user => user.Username == username, cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<int> FindLatestOrganizationIdAsync(CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<User>().MaxAsync(user => (int?)user.OrganizationId, cancellationToken) ?? 0;
+    }
 }
