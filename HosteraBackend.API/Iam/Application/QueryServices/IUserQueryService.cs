@@ -25,6 +25,14 @@ public interface IUserQueryService
     Task<IEnumerable<User>> Handle(GetAllUsersQuery query, CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Handles the get all users by organization id query.
+    /// </summary>
+    /// <param name="query">The <see cref="GetAllUsersByOrganizationIdQuery" /> query to handle.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The users of the organization, ordered by username.</returns>
+    Task<IEnumerable<User>> Handle(GetAllUsersByOrganizationIdQuery query, CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Handles the get user by username query.
     /// </summary>
     /// <param name="query">The <see cref="GetUserByUsernameQuery" /> query to handle.</param>

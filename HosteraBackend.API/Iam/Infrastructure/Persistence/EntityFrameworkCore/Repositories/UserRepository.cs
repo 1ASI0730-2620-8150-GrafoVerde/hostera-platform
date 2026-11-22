@@ -51,6 +51,17 @@ public class UserRepository(AppDbContext context) : BaseRepository<User>(context
     }
 
     /// <inheritdoc />
+    public async Task<IEnumerable<User>> FindByOrganizationIdAsNoTrackingAsync(int organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<User>()
+            .AsNoTracking()
+            .Where(user => user.OrganizationId == organizationId)
+            .OrderBy(user => user.Username)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<bool> ExistsByUsernameAsync(string username, CancellationToken cancellationToken = default)
     {
         return await Context.Set<User>().AnyAsync(user => user.Username == username, cancellationToken);

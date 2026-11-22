@@ -26,6 +26,13 @@ public class UserQueryService(IUserRepository userRepository) : IUserQueryServic
     }
 
     /// <inheritdoc />
+    public async Task<IEnumerable<User>> Handle(GetAllUsersByOrganizationIdQuery query,
+        CancellationToken cancellationToken)
+    {
+        return await userRepository.FindByOrganizationIdAsNoTrackingAsync(query.OrganizationId, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<User?> Handle(GetUserByUsernameQuery query, CancellationToken cancellationToken)
     {
         return string.IsNullOrWhiteSpace(query.Username)

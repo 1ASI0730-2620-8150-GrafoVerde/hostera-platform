@@ -40,6 +40,15 @@ public interface IUserRepository : IBaseRepository<User>
     Task<IEnumerable<User>> ListAsNoTrackingAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    ///     Find the users of an organization ordered by username without change tracking
+    /// </summary>
+    /// <param name="organizationId">The identifier of the organization.</param>
+    /// <param name="cancellationToken">Token to cancel the asynchronous operation.</param>
+    /// <returns>An Enumerable containing the users of the organization, or empty otherwise.</returns>
+    Task<IEnumerable<User>> FindByOrganizationIdAsNoTrackingAsync(int organizationId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     ///     Check if a user exists by username
     /// </summary>
     /// <param name="username">The username to search.</param>
