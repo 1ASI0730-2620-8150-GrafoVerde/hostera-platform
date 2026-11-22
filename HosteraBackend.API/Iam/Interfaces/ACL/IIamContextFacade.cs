@@ -1,0 +1,42 @@
+namespace HosteraBackend.API.Iam.Interfaces.ACL;
+
+/// <summary>
+///     Facade that other bounded contexts use to create and read the users of the IAM bounded context.
+/// </summary>
+public interface IIamContextFacade
+{
+    /// <summary>
+    ///     Creates a user of an organization.
+    /// </summary>
+    /// <param name="username">The username of the user.</param>
+    /// <param name="password">The password of the user, between 8 and 64 characters.</param>
+    /// <param name="organizationId">The identifier of the organization of the user.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The identifier of the created user, or zero when it could not be created.</returns>
+    Task<int> CreateUserAsync(string username, string password, int organizationId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Fetches the identifier of a user by username.
+    /// </summary>
+    /// <param name="username">The username of the user.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The identifier of the user, or zero when it does not exist.</returns>
+    Task<int> FetchUserIdByUsernameAsync(string username, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Fetches the username of a user.
+    /// </summary>
+    /// <param name="userId">The identifier of the user.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The username, or an empty string when the user does not exist.</returns>
+    Task<string> FetchUsernameByUserIdAsync(int userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Fetches the organization of a user.
+    /// </summary>
+    /// <param name="userId">The identifier of the user.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The identifier of the organization, or null when the user does not exist.</returns>
+    Task<int?> FetchOrganizationIdByUserIdAsync(int userId, CancellationToken cancellationToken);
+}
