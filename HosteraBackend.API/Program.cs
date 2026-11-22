@@ -52,6 +52,7 @@ using HosteraBackend.API.Rooms.Interfaces.ACL;
 using HosteraBackend.API.Shared.Application.Internal.OutboundServices;
 using HosteraBackend.API.Shared.Domain.Repositories;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Configuration;
+using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.OpenApi;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Shared.Infrastructure.Seeding;
@@ -108,7 +109,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// The bearer security scheme lets the Scalar reference send the token of the signed-in user
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+    options.AddOperationTransformer<BearerSecurityOperationTransformer>();
+});
 
 // Dependency Injection
 
@@ -211,7 +217,8 @@ using (var scope = app.Services.CreateScope())
 if (app.Configuration.GetValue("Hostera:PublishApiReference", app.Environment.IsDevelopment()))
 {
     app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapScalarApiReference(options =>
+        options.AddPreferredSecuritySchemes(BearerSecuritySchemeTransformer.SchemeName));
 }
 
 // Apply CORS Policy
