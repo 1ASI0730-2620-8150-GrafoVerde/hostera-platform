@@ -50,9 +50,11 @@ using HosteraBackend.API.Rooms.Application.QueryServices;
 using HosteraBackend.API.Rooms.Domain.Repositories;
 using HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Rooms.Interfaces.ACL;
+using HosteraBackend.API.Rooms.Interfaces.Rest.Authorization;
 using HosteraBackend.API.Shared.Application.Internal.OutboundServices;
 using HosteraBackend.API.Shared.Domain.Repositories;
 using HosteraBackend.API.Shared.Infrastructure.Health;
+using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Authorization;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.OpenApi;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
@@ -170,6 +172,7 @@ builder.Services.AddScoped<IStatusPeriodCommandService, StatusPeriodCommandServi
 builder.Services.AddScoped<IStatusPeriodQueryService, StatusPeriodQueryService>();
 builder.Services.AddScoped<IRoomsContextFacade, RoomsContextFacade>();
 builder.Services.AddScoped<ExternalBookingService>();
+builder.Services.AddScoped<IPropertyScopeResolver, RoomsPropertyScopeResolver>();
 
 // Bookings Bounded Context
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
