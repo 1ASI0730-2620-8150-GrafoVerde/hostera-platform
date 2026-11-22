@@ -14,13 +14,18 @@ namespace HosteraBackend.API.Iam.Infrastructure.Tokens.Jwt.Services;
 ///     JSON Web Token implementation of <see cref="ITokenService" />.
 /// </summary>
 /// <remarks>
-///     Tokens are signed with HMAC-SHA256 using the secret of <see cref="TokenSettings" />, carry the identifier and
-///     username of the user, and expire seven days after they are issued.
+///     Tokens are signed with HMAC-SHA256 using the secret of <see cref="TokenSettings" />, carry the identifier,
+///     username and organization of the user, and expire seven days after they are issued.
 /// </remarks>
 /// <param name="tokenSettings">The <see cref="TokenSettings" /> with the signing secret.</param>
 /// <param name="logger">The logger that records why a token was rejected.</param>
 public class TokenService(IOptions<TokenSettings> tokenSettings, ILogger<TokenService> logger) : ITokenService
 {
+    /// <summary>
+    ///     The type of the claim with the identifier of the organization of the user.
+    /// </summary>
+    public const string OrganizationIdClaimType = "organization_id";
+
     private static readonly TimeSpan TokenLifetime = TimeSpan.FromDays(7);
 
     private readonly TokenSettings _tokenSettings = tokenSettings.Value;
@@ -32,7 +37,9 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, ILogger<TokenSe
         {
             Subject = new ClaimsIdentity([
                 new Claim(ClaimTypes.Sid, user.Id.ToString(CultureInfo.InvariantCulture)),
-                new Claim(ClaimTypes.Name, user.Username)
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(OrganizationIdClaimType, user.OrganizationId.ToString(CultureInfo.InvariantCulture),
+                    ClaimValueTypes.Integer32)
             ]),
             Expires = DateTime.UtcNow.Add(TokenLifetime),
             SigningCredentials = new SigningCredentials(GetSigningKey(), SecurityAlgorithms.HmacSha256Signature)
