@@ -37,6 +37,7 @@ using HosteraBackend.API.Inventory.Application.Internal.QueryServices;
 using HosteraBackend.API.Inventory.Application.QueryServices;
 using HosteraBackend.API.Inventory.Domain.Repositories;
 using HosteraBackend.API.Inventory.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Inventory.Interfaces.Rest.Authorization;
 using HosteraBackend.API.Overview.Application.Internal.OutboundServices.ACL;
 using HosteraBackend.API.Overview.Application.Internal.QueryServices;
 using HosteraBackend.API.Overview.Application.QueryServices;
@@ -143,6 +144,7 @@ builder.Services.AddScoped<IStorageLocationCommandService, StorageLocationComman
 builder.Services.AddScoped<IStorageLocationQueryService, StorageLocationQueryService>();
 builder.Services.AddScoped<IInventoryItemCommandService, InventoryItemCommandService>();
 builder.Services.AddScoped<IInventoryItemQueryService, InventoryItemQueryService>();
+builder.Services.AddScoped<IPropertyScopeResolver, InventoryPropertyScopeResolver>();
 
 // Access Control Bounded Context
 builder.Services.AddScoped<ICredentialRepository, CredentialRepository>();
