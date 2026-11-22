@@ -51,6 +51,7 @@ using HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCore.Re
 using HosteraBackend.API.Rooms.Interfaces.ACL;
 using HosteraBackend.API.Shared.Application.Internal.OutboundServices;
 using HosteraBackend.API.Shared.Domain.Repositories;
+using HosteraBackend.API.Shared.Infrastructure.Health;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.OpenApi;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
@@ -107,6 +108,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     if (builder.Environment.IsDevelopment())
         options.EnableSensitiveDataLogging().EnableDetailedErrors();
 });
+
+// The health check is not a controller endpoint, so it answers without a bearer token
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 // The bearer security scheme lets the Scalar reference send the token of the signed-in user
@@ -241,5 +245,7 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health");
 
 app.Run();
