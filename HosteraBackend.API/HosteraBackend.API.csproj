@@ -23,6 +23,8 @@
         <PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.9"/>
         <!-- Naming convention conversion related packages -->
         <PackageReference Include="Humanizer" Version="3.0.10"/>
+        <!-- Transactional email provider -->
+        <PackageReference Include="Resend" Version="0.25.0"/>
     </ItemGroup>
 
     <ItemGroup>
