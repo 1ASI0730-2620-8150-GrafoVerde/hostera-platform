@@ -7,6 +7,21 @@ namespace HosteraBackend.API.Rooms.Interfaces.ACL;
 public interface IRoomsContextFacade
 {
     /// <summary>
+    ///     Fetches the organization that owns a property.
+    /// </summary>
+    /// <param name="propertyId">The identifier of the property.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The identifier of the organization, or null when the property does not exist.</returns>
+    Task<int?> FetchOrganizationIdByPropertyIdAsync(int propertyId, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Fetches the highest organization identifier that owns a property.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The highest organization identifier, or zero when there are no properties.</returns>
+    Task<int> FetchLatestOrganizationIdAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Fetches a room.
     /// </summary>
     /// <param name="roomId">The identifier of the room.</param>

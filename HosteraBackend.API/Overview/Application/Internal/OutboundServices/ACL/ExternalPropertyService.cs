@@ -25,13 +25,16 @@ public class ExternalPropertyService(IPropertyQueryService propertyQueryService)
     }
 
     /// <summary>
-    ///     Fetches every property.
+    ///     Fetches every property of an organization.
     /// </summary>
+    /// <param name="organizationId">The identifier of the organization that owns the properties.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The properties, ordered by name.</returns>
-    public async Task<IReadOnlyList<PropertyReadModel>> FetchAllPropertiesAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PropertyReadModel>> FetchAllPropertiesAsync(int organizationId,
+        CancellationToken cancellationToken)
     {
-        var properties = await propertyQueryService.Handle(new GetAllPropertiesQuery(), cancellationToken);
+        var properties = await propertyQueryService.Handle(new GetAllPropertiesByOrganizationIdQuery(organizationId),
+            cancellationToken);
         return properties
             .Select(property => new PropertyReadModel(property.Id, property.Name))
             .OrderBy(property => property.Name)

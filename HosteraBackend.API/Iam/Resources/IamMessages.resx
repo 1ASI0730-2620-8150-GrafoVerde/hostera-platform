@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>2.0</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <data name="IamError.InvalidInput" xml:space="preserve">
+        <value>One or more values are not valid.</value>
+    </data>
+    <data name="IamError.UserNotFound" xml:space="preserve">
+        <value>The specified user was not found.</value>
+    </data>
+    <data name="IamError.UsernameAlreadyTaken" xml:space="preserve">
+        <value>The specified username is already taken.</value>
+    </data>
+    <data name="IamError.InvalidCredentials" xml:space="preserve">
+        <value>The username or the password is not correct.</value>
+    </data>
+    <data name="IamError.AuthenticationRequired" xml:space="preserve">
+        <value>A valid bearer token is required in the Authorization header.</value>
+    </data>
+</root>

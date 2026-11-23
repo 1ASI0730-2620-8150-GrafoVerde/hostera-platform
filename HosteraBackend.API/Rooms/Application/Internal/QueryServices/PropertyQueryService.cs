@@ -20,6 +20,13 @@ public class PropertyQueryService(IPropertyRepository propertyRepository) : IPro
     }
 
     /// <inheritdoc />
+    public async Task<IEnumerable<Property>> Handle(GetAllPropertiesByOrganizationIdQuery query,
+        CancellationToken cancellationToken)
+    {
+        return await propertyRepository.FindByOrganizationIdAsync(query.OrganizationId, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<Property?> Handle(GetPropertyByIdQuery query, CancellationToken cancellationToken)
     {
         return await propertyRepository.FindByIdAsync(query.PropertyId, cancellationToken);

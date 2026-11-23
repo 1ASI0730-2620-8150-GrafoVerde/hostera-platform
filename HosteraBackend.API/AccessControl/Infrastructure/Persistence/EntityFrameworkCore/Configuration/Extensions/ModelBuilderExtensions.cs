@@ -30,7 +30,10 @@ public static class ModelBuilderExtensions
                 new { Id = 5, PropertyId = 1, Name = "Diana Flores", Role = "Night auditor" },
                 new { Id = 6, PropertyId = 1, Name = "Pedro Rivas", Role = "Housekeeping attendant" },
                 new { Id = 7, PropertyId = 2, Name = "Carla Núñez", Role = "Front desk agent" },
-                new { Id = 8, PropertyId = 2, Name = "Miguel Ortiz", Role = "Housekeeping attendant" });
+                new { Id = 8, PropertyId = 2, Name = "Miguel Ortiz", Role = "Housekeeping attendant" },
+                new { Id = 9, PropertyId = 3, Name = "Silvia Cárdenas", Role = "Operations manager" },
+                new { Id = 10, PropertyId = 3, Name = "Raúl Mamani", Role = "Front desk agent" },
+                new { Id = 11, PropertyId = 3, Name = "Teresa Apaza", Role = "Housekeeping attendant" });
         });
 
         builder.Entity<Credential>(credential =>

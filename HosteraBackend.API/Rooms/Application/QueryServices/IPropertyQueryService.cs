@@ -17,6 +17,15 @@ public interface IPropertyQueryService
     Task<IEnumerable<Property>> Handle(GetAllPropertiesQuery query, CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Handles the get all properties by organization id query.
+    /// </summary>
+    /// <param name="query">The <see cref="GetAllPropertiesByOrganizationIdQuery" /> query to handle.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The properties of the organization, ordered by name.</returns>
+    Task<IEnumerable<Property>> Handle(GetAllPropertiesByOrganizationIdQuery query,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Handles the get property by id query.
     /// </summary>
     /// <param name="query">The <see cref="GetPropertyByIdQuery" /> query to handle.</param>
