@@ -25,7 +25,8 @@ namespace HosteraBackend.API.Shared.Infrastructure.Seeding;
 /// </summary>
 /// <remarks>
 ///     The catalogs (room types, rooms, rate plans, storage locations, inventory items and staff credentials) follow the
-///     frontend mock data. Bookings, payments, operational statuses and access events are placed around the current day,
+///     frontend mock data for Cartagena 04 and Lima 01; Arequipa 01, the property of a second organization, gets a
+///     smaller hotel built the same way. Bookings, payments, operational statuses and access events are placed around the current day,
 ///     so the overview always has past revenue, stays in progress, today's arrivals and future bookings. Everything goes
 ///     through the application services, so the data respects the same rules as the API. Stays that already ended are
 ///     the exception: their check-in and check-out are recorded on past days, which the API only allows on the current
@@ -50,6 +51,8 @@ public class DemoDataSeeder(
     ILogger<DemoDataSeeder> logger)
 {
     private const int FrontDeskAgentId = 4;
+    private const int ArequipaFrontDeskAgentId = 10;
+    private const int ArequipaPropertyId = 3;
     private const string DemoOperator = "Demo operator";
 
     private readonly Dictionary<(int PropertyId, string Name), int> _roomTypeIds = [];
@@ -57,6 +60,7 @@ public class DemoDataSeeder(
     private readonly Dictionary<(int PropertyId, string Name), int> _ratePlanIds = [];
     private readonly Dictionary<(int PropertyId, string Code), int> _storageLocationIds = [];
     private readonly Dictionary<(int PropertyId, string Code), int> _inventoryItemIds = [];
+    private readonly Dictionary<int, int> _bookingPropertyIds = [];
     private int _guestCardNumber = 0xA100;
 
     /// <summary>
@@ -95,7 +99,8 @@ public class DemoDataSeeder(
             (1, "Standard", 2, "1 queen", 180), (1, "Twin", 2, "2 single", 200),
             (1, "Deluxe", 4, "1 king + sofa bed", 290), (1, "Suite", 4, "1 king + sofa bed", 420),
             (1, "Family", 5, "2 double + 1 single", 340), (2, "Standard", 2, "1 queen", 150),
-            (2, "Deluxe", 3, "1 king + 1 single", 240)
+            (2, "Deluxe", 3, "1 king + 1 single", 240), (3, "Standard", 2, "1 queen", 160),
+            (3, "Deluxe", 3, "1 king + 1 single", 230)
         ];
         foreach (var (propertyId, name, capacity, beds, rate) in roomTypes)
         {
@@ -111,7 +116,8 @@ public class DemoDataSeeder(
             (1, "402", "Standard", 4), (1, "407", "Twin", 4), (1, "410", "Deluxe", 4), (1, "412", "Standard", 4),
             (1, "501", "Standard", 5), (1, "507", "Deluxe", 5), (1, "509", "Family", 5), (1, "601", "Suite", 6),
             (1, "608", "Suite", 6), (2, "101", "Standard", 1), (2, "102", "Standard", 1), (2, "103", "Deluxe", 1),
-            (2, "201", "Standard", 2), (2, "202", "Deluxe", 2)
+            (2, "201", "Standard", 2), (2, "202", "Deluxe", 2), (3, "101", "Standard", 1), (3, "102", "Standard", 1),
+            (3, "103", "Deluxe", 1), (3, "201", "Standard", 2), (3, "202", "Deluxe", 2)
         ];
         foreach (var (propertyId, number, roomType, floor) in rooms)
         {
@@ -136,7 +142,10 @@ public class DemoDataSeeder(
                     ["Suite"]),
                 (1, "Summer 2026", true, "Free cancellation until 72 hours before arrival",
                     EIncludedService.BreakfastIncluded, ["Standard", "Twin", "Deluxe"]),
-                (2, "Flexible", true, "Free cancellation until 24 hours before arrival", EIncludedService.RoomOnly, [])
+                (2, "Flexible", true, "Free cancellation until 24 hours before arrival", EIncludedService.RoomOnly, []),
+                (3, "Flexible", true, "Free cancellation until 24 hours before arrival", EIncludedService.RoomOnly, []),
+                (3, "Breakfast included", true, "Free cancellation until 48 hours before arrival",
+                    EIncludedService.BreakfastIncluded, [])
             ];
         foreach (var (propertyId, name, refundable, policy, service, roomTypeNames) in ratePlans)
         {
@@ -155,7 +164,7 @@ public class DemoDataSeeder(
 
         // Weekend nights cost more under the flexible plans
         (int PropertyId, string RoomType, decimal Rate)[] weekendRates =
-            [(1, "Standard", 210), (1, "Twin", 230), (2, "Standard", 170)];
+            [(1, "Standard", 210), (1, "Twin", 230), (2, "Standard", 170), (3, "Standard", 185)];
         for (var night = clock.Today.AddDays(-35); night <= clock.Today.AddDays(35); night = night.AddDays(1))
         {
             if (night.DayOfWeek is not (DayOfWeek.Friday or DayOfWeek.Saturday))
@@ -176,7 +185,9 @@ public class DemoDataSeeder(
             (1, "MAIN-01", "Main storage", EStorageLocationType.Warehouse, "Basement", "Operations"),
             (1, "F3-01", "Floor 3 closet", EStorageLocationType.Closet, "Floor 3", "Housekeeping"),
             (1, "FD-01", "Front desk", EStorageLocationType.FrontDesk, "Lobby", "Front desk"),
-            (2, "MAIN-01", "Main storage", EStorageLocationType.Warehouse, "Ground floor", "Operations")
+            (2, "MAIN-01", "Main storage", EStorageLocationType.Warehouse, "Ground floor", "Operations"),
+            (3, "MAIN-01", "Main storage", EStorageLocationType.Warehouse, "Ground floor", "Operations"),
+            (3, "FD-01", "Front desk", EStorageLocationType.FrontDesk, "Lobby", "Front desk")
         ];
         foreach (var (propertyId, code, name, type, area, team) in locations)
         {
@@ -201,7 +212,12 @@ public class DemoDataSeeder(
                     "HK-01", 8, 12.5m),
                 (2, "LIN-BT-001", "Bath towels", EInventoryCategory.Linen, EInventoryUnit.Units, "MAIN-01", 10, 32),
                 (2, "AM-HS-002", "Hand soap", EInventoryCategory.GuestAmenities, EInventoryUnit.Liters, "MAIN-01", 5,
-                    3.5m)
+                    3.5m),
+                (3, "LIN-BT-001", "Bath towels", EInventoryCategory.Linen, EInventoryUnit.Units, "MAIN-01", 10, 26),
+                (3, "AM-SH-002", "Shampoo bottles", EInventoryCategory.GuestAmenities, EInventoryUnit.Units, "MAIN-01",
+                    15, 9),
+                (3, "AC-KC-003", "RFID key cards", EInventoryCategory.AccessSupplies, EInventoryUnit.Units, "FD-01", 10,
+                    30)
             ];
         foreach (var (propertyId, code, name, category, unit, location, threshold, opening) in items)
         {
@@ -231,13 +247,15 @@ public class DemoDataSeeder(
         [
             (1, 1, EAccessScope.ServiceAreas, "F47D"), (1, 2, EAccessScope.AllAreas, "1C3A"),
             (1, 3, EAccessScope.AllRooms, "9AE2"), (1, 4, EAccessScope.ServiceAreas, "5B6C"),
-            (1, 6, EAccessScope.AllRooms, "C0D8"), (2, 7, EAccessScope.ServiceAreas, "7E44")
+            (1, 6, EAccessScope.AllRooms, "C0D8"), (2, 7, EAccessScope.ServiceAreas, "7E44"),
+            (3, 9, EAccessScope.AllAreas, "3A10"), (3, 10, EAccessScope.ServiceAreas, "3B20"),
+            (3, 11, EAccessScope.AllRooms, "3C30")
         ];
         var validFrom = clock.Now.AddDays(-90);
         foreach (var (propertyId, staffMemberId, scope, cardId) in staffCredentials)
             Expect(await credentialCommandService.Handle(new IssueStaffCredentialCommand(propertyId, staffMemberId,
-                scope, new ValidityPeriod(validFrom, null), new CardId(cardId), 1), cancellationToken),
-                $"staff card {cardId}");
+                scope, new ValidityPeriod(validFrom, null), new CardId(cardId), OperationsManagerOf(propertyId)),
+                cancellationToken), $"staff card {cardId}");
     }
 
     private async Task SeedBookingsAsync(CancellationToken cancellationToken)
@@ -258,14 +276,19 @@ public class DemoDataSeeder(
             (1, "608", "Valeria Quispe", -23, 2, "Flexible"), (1, "608", "Emily Carter", -5, 4, "Breakfast included"),
             (2, "101", "Lucía Paredes", -20, 3, "Flexible"), (2, "101", "Diego Navarro", -7, 2, "Flexible"),
             (2, "102", "Paula Vargas", -15, 4, "Flexible"), (2, "103", "James Whitaker", -10, 3, "Flexible"),
-            (2, "201", "Elena Ferrer", -5, 2, "Flexible"), (2, "202", "Noah Bennett", -12, 5, "Flexible")
+            (2, "201", "Elena Ferrer", -5, 2, "Flexible"), (2, "202", "Noah Bennett", -12, 5, "Flexible"),
+            (3, "101", "Martín Quispe", -18, 3, "Flexible"), (3, "103", "Ana Huanca", -12, 2, "Breakfast included"),
+            (3, "201", "Oliver Hughes", -9, 4, "Flexible"), (3, "102", "Rosa Condori", -5, 2, "Flexible")
         ];
         foreach (var (propertyId, room, guest, arrival, nights, plan) in pastStays)
             await SeedPastStayAsync(propertyId, room, guest, arrival, nights, plan, cancellationToken);
 
         // Guests leaving today, who checked in on their arrival day
         (int PropertyId, string Room, string Guest, int Arrival, int Nights)[] departures =
-            [(1, "203", "Sofía Ramírez", -3, 3), (2, "201", "Rodrigo Flores", -2, 2)];
+        [
+            (1, "203", "Sofía Ramírez", -3, 3), (2, "201", "Rodrigo Flores", -2, 2),
+            (3, "202", "Carlos Mendoza", -2, 2)
+        ];
         foreach (var (propertyId, room, guest, arrival, nights) in departures)
         {
             var bookingId = await CreateBookingAsync(propertyId, room, guest, arrival, nights, "Flexible",
@@ -277,7 +300,7 @@ public class DemoDataSeeder(
             var booking = await bookingRepository.FindByIdAsync(bookingId, cancellationToken)
                           ?? throw new InvalidOperationException($"The booking of {guest} was not saved.");
             booking.CheckIn(checkInDate, EDocumentType.Dni, $"{40000000 + bookingId}", true,
-                clock.AtLocalTime(checkInDate, new TimeOnly(15, 0)), FrontDeskAgentId);
+                clock.AtLocalTime(checkInDate, new TimeOnly(15, 0)), OperatorOf(bookingId));
             await unitOfWork.CompleteAsync(cancellationToken);
         }
 
@@ -286,7 +309,8 @@ public class DemoDataSeeder(
         [
             (1, "214", "Olivia Grant", -2, 4, 0.5m),
             (1, "301", "Rodrigo Flores", -1, 3, 1), (1, "410", "Isabel Mendoza", -3, 5, 0.4m),
-            (2, "101", "Gabriela Chávez", -1, 3, 1), (1, "601", "James Whitaker", 0, 3, 0.5m)
+            (2, "101", "Gabriela Chávez", -1, 3, 1), (3, "103", "Lucía Torres", -1, 3, 1),
+            (1, "601", "James Whitaker", 0, 3, 0.5m)
         ];
         foreach (var (propertyId, room, guest, arrival, nights, paidShare) in currentStays)
         {
@@ -297,7 +321,7 @@ public class DemoDataSeeder(
                 BeforeNow(clock.AtLocalTime(clock.Today.AddDays(arrival), new TimeOnly(9, 0))),
                 EPaymentMethod.CardTerminal, cancellationToken);
             Expect(await stayCommandService.Handle(new CheckInBookingCommand(bookingId, EDocumentType.Passport,
-                $"P{bookingId:D7}", true, [NextGuestCardId()], FrontDeskAgentId), cancellationToken),
+                $"P{bookingId:D7}", true, [NextGuestCardId()], OperatorOf(bookingId)), cancellationToken),
                 $"check-in of {guest}");
         }
 
@@ -311,12 +335,14 @@ public class DemoDataSeeder(
         await CreateBookingAsync(1, "402", "Valeria Quispe", 0, 2, "Non-refundable", cancellationToken);
         await ConfirmAsync(await CreateBookingAsync(2, "102", "Tomás Herrera", 0, 2, "Flexible", cancellationToken),
             cancellationToken);
+        await ConfirmAsync(await CreateBookingAsync(3, "101", "Pedro Ccama", 0, 2, "Flexible", cancellationToken),
+            cancellationToken);
 
         // A guest who did not arrive yesterday
         var noShow = await CreateBookingAsync(1, "412", "Lucas Moreno", -1, 2, "Flexible", cancellationToken);
         await ConfirmAsync(noShow, cancellationToken);
         Expect(await bookingCommandService.Handle(new TransitionBookingCommand(noShow, EBookingStatus.NoShow,
-            FrontDeskAgentId), cancellationToken), "no-show");
+            OperatorOf(noShow)), cancellationToken), "no-show");
 
         // Bookings ahead, one of them cancelled
         var paidAhead = await CreateBookingAsync(1, "407", "Adriana Torres", 1, 4, "Flexible", cancellationToken);
@@ -335,9 +361,16 @@ public class DemoDataSeeder(
         await CreateBookingAsync(2, "103", "Noah Bennett", 3, 2, "Flexible", cancellationToken);
         await ConfirmAsync(await CreateBookingAsync(2, "202", "Lucía Paredes", 1, 3, "Flexible", cancellationToken),
             cancellationToken);
-        var cancelled = await CreateBookingAsync(1, "308", "Diego Navarro", 4, 2, "Flexible", cancellationToken);
-        Expect(await bookingCommandService.Handle(new TransitionBookingCommand(cancelled, EBookingStatus.Cancelled,
-            FrontDeskAgentId, ECancellationReason.ChangeOfPlans), cancellationToken), "cancellation");
+        await ConfirmAsync(await CreateBookingAsync(3, "201", "Daniela Ríos", 2, 3, "Breakfast included",
+            cancellationToken), cancellationToken);
+        await CreateBookingAsync(3, "102", "Jorge Vilca", 4, 2, "Flexible", cancellationToken);
+        foreach (var cancelled in new[]
+                 {
+                     await CreateBookingAsync(1, "308", "Diego Navarro", 4, 2, "Flexible", cancellationToken),
+                     await CreateBookingAsync(3, "202", "Hannah Smith", 6, 2, "Flexible", cancellationToken)
+                 })
+            Expect(await bookingCommandService.Handle(new TransitionBookingCommand(cancelled, EBookingStatus.Cancelled,
+                OperatorOf(cancelled), ECancellationReason.ChangeOfPlans), cancellationToken), "cancellation");
     }
 
     private async Task SeedPastStayAsync(int propertyId, string room, string guest, int arrival, int nights,
@@ -354,9 +387,9 @@ public class DemoDataSeeder(
         var booking = await bookingRepository.FindByIdAsync(bookingId, cancellationToken)
                       ?? throw new InvalidOperationException($"The booking of {guest} was not saved.");
         booking.CheckIn(checkInDate, EDocumentType.Dni, $"{40000000 + bookingId}", true,
-            clock.AtLocalTime(checkInDate, new TimeOnly(15, 0)), FrontDeskAgentId);
+            clock.AtLocalTime(checkInDate, new TimeOnly(15, 0)), OperatorOf(bookingId));
         booking.CheckOut(0, ERoomCondition.NoIssues, null, clock.AtLocalTime(checkOutDate, new TimeOnly(10, 30)),
-            FrontDeskAgentId);
+            OperatorOf(bookingId));
         await unitOfWork.CompleteAsync(cancellationToken);
     }
 
@@ -370,7 +403,8 @@ public class DemoDataSeeder(
             (1, "608", EOperationalStatus.NeedsCleaning, 0, 0, "Deep cleaning after checkout"),
             (1, "308", EOperationalStatus.Blocked, 7, 9, "Held for a corporate group"),
             (1, "407", EOperationalStatus.Blocked, 6, 7, "Staff training"),
-            (2, "201", EOperationalStatus.Blocked, 1, 3, "Owner use")
+            (2, "201", EOperationalStatus.Blocked, 1, 3, "Owner use"),
+            (3, "102", EOperationalStatus.Blocked, 8, 9, "Owner use")
         ];
         foreach (var (propertyId, room, status, from, to, reason) in statusPeriods)
             Expect(await statusPeriodCommandService.Handle(new SetRoomStatusCommand(_roomIds[(propertyId, room)],
@@ -380,18 +414,20 @@ public class DemoDataSeeder(
 
     private async Task SeedAccessEventsAsync(CancellationToken cancellationToken)
     {
-        (string CardId, EAccessPoint Point, string? Room, int MinutesAgo)[] staffEvents =
+        (int PropertyId, string CardId, EAccessPoint Point, string? Room, int MinutesAgo)[] staffEvents =
         [
-            ("F47D", EAccessPoint.ServiceCorridor, null, 400), ("1C3A", EAccessPoint.MainEntrance, null, 380),
-            ("9AE2", EAccessPoint.RoomDoor, "305", 350), ("5B6C", EAccessPoint.StorageRoom, null, 300),
-            ("C0D8", EAccessPoint.RoomDoor, "210", 240), ("F47D", EAccessPoint.RoomDoor, "601", 200),
-            ("1C3A", EAccessPoint.StorageRoom, null, 150), ("9AE2", EAccessPoint.Elevator, null, 90),
-            ("5B6C", EAccessPoint.MainEntrance, null, 45), ("C0D8", EAccessPoint.ServiceCorridor, null, 20)
+            (1, "F47D", EAccessPoint.ServiceCorridor, null, 400), (1, "1C3A", EAccessPoint.MainEntrance, null, 380),
+            (1, "9AE2", EAccessPoint.RoomDoor, "305", 350), (1, "5B6C", EAccessPoint.StorageRoom, null, 300),
+            (1, "C0D8", EAccessPoint.RoomDoor, "210", 240), (1, "F47D", EAccessPoint.RoomDoor, "601", 200),
+            (1, "1C3A", EAccessPoint.StorageRoom, null, 150), (1, "9AE2", EAccessPoint.Elevator, null, 90),
+            (1, "5B6C", EAccessPoint.MainEntrance, null, 45), (1, "C0D8", EAccessPoint.ServiceCorridor, null, 20),
+            (3, "3A10", EAccessPoint.MainEntrance, null, 320), (3, "3B20", EAccessPoint.StorageRoom, null, 180),
+            (3, "3C30", EAccessPoint.RoomDoor, "201", 95), (3, "3B20", EAccessPoint.MainEntrance, null, 30)
         ];
-        foreach (var (cardId, point, room, minutesAgo) in staffEvents)
-            Expect(await accessEventCommandService.Handle(new RecordAccessEventCommand(1, new CardId(cardId), point,
-                room is null ? null : _roomIds[(1, room)], clock.Now.AddMinutes(-minutesAgo)), cancellationToken),
-                $"access of {cardId}");
+        foreach (var (propertyId, cardId, point, room, minutesAgo) in staffEvents)
+            Expect(await accessEventCommandService.Handle(new RecordAccessEventCommand(propertyId, new CardId(cardId),
+                point, room is null ? null : _roomIds[(propertyId, room)], clock.Now.AddMinutes(-minutesAgo)),
+                cancellationToken), $"access of {cardId}");
     }
 
     private async Task<int> CreateBookingAsync(int propertyId, string room, string guest, int arrival, int nights,
@@ -403,18 +439,20 @@ public class DemoDataSeeder(
         var email = $"{guest.Split(' ')[0].ToLowerInvariant()}.{guest.Split(' ')[^1].ToLowerInvariant()}@example.com"
             .Replace('á', 'a').Replace('é', 'e').Replace('í', 'i').Replace('ó', 'o').Replace('ú', 'u');
         var language = guest is "James Whitaker" or "Noah Bennett" or "Olivia Grant" or "Emily Carter"
+            or "Oliver Hughes" or "Hannah Smith"
             ? EPreferredLanguage.En
             : EPreferredLanguage.Es;
 
         var booking = Expect(await bookingCommandService.Handle(new CreateBookingCommand(propertyId, guest, email,
             null, language, checkInDate, checkInDate.AddDays(nights), 2, roomTypeId, roomId,
             _ratePlanIds[(propertyId, plan)], null), cancellationToken), $"booking of {guest}");
+        _bookingPropertyIds[booking.Id] = propertyId;
         return booking.Id;
     }
 
     private async Task ConfirmAsync(int bookingId, CancellationToken cancellationToken) =>
         Expect(await bookingCommandService.Handle(new TransitionBookingCommand(bookingId, EBookingStatus.Confirmed,
-            FrontDeskAgentId), cancellationToken), $"confirmation of booking {bookingId}");
+            OperatorOf(bookingId)), cancellationToken), $"confirmation of booking {bookingId}");
 
     private async Task PayShareAsync(int bookingId, decimal share, DateTimeOffset paidAt, EPaymentMethod method,
         CancellationToken cancellationToken)
@@ -426,8 +464,22 @@ public class DemoDataSeeder(
             return;
 
         Expect(await paymentCommandService.Handle(new RecordPaymentCommand(bookingId, amount, method, paidAt,
-            $"DEMO-{bookingId:D4}", FrontDeskAgentId, null), cancellationToken), $"payment of booking {bookingId}");
+            $"DEMO-{bookingId:D4}", OperatorOf(bookingId), null), cancellationToken),
+            $"payment of booking {bookingId}");
     }
+
+    /// <summary>
+    ///     Returns the front desk agent of the property of a booking, who operates its changes.
+    /// </summary>
+    private int OperatorOf(int bookingId) =>
+        _bookingPropertyIds.GetValueOrDefault(bookingId) == ArequipaPropertyId
+            ? ArequipaFrontDeskAgentId
+            : FrontDeskAgentId;
+
+    /// <summary>
+    ///     Returns the operations manager who issues the staff credentials of a property.
+    /// </summary>
+    private static int OperationsManagerOf(int propertyId) => propertyId == ArequipaPropertyId ? 9 : 1;
 
     /// <summary>
     ///     Keeps a payment moment in the past, because payments cannot be received in the future.
