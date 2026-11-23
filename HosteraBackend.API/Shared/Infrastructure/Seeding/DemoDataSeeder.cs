@@ -5,6 +5,7 @@ using HosteraBackend.API.Bookings.Application.CommandServices;
 using HosteraBackend.API.Bookings.Domain.Model.Commands;
 using HosteraBackend.API.Bookings.Domain.Model.ValueObjects;
 using HosteraBackend.API.Bookings.Domain.Repositories;
+using HosteraBackend.API.Iam.Interfaces.ACL;
 using HosteraBackend.API.Inventory.Application.CommandServices;
 using HosteraBackend.API.Inventory.Domain.Model.Commands;
 using HosteraBackend.API.Inventory.Domain.Model.ValueObjects;
@@ -26,8 +27,9 @@ namespace HosteraBackend.API.Shared.Infrastructure.Seeding;
 /// <remarks>
 ///     The catalogs (room types, rooms, rate plans, storage locations, inventory items and staff credentials) follow the
 ///     frontend mock data for Cartagena 04 and Lima 01; Arequipa 01, the property of a second organization, gets a
-///     smaller hotel built the same way. Bookings, payments, operational statuses and access events are placed around the current day,
-///     so the overview always has past revenue, stays in progress, today's arrivals and future bookings. Everything goes
+///     smaller hotel built the same way. Bookings, payments, operational statuses and access events are placed around
+///     the current day, so the overview always has past revenue, stays in progress, today's arrivals and future
+///     bookings. Each organization also gets a demonstration account to sign in with. Everything goes
 ///     through the application services, so the data respects the same rules as the API. Stays that already ended are
 ///     the exception: their check-in and check-out are recorded on past days, which the API only allows on the current
 ///     day.
@@ -46,6 +48,7 @@ public class DemoDataSeeder(
     IBookingCommandService bookingCommandService,
     IPaymentCommandService paymentCommandService,
     IStayCommandService stayCommandService,
+    IIamContextFacade iamContextFacade,
     IBookingRepository bookingRepository,
     IUnitOfWork unitOfWork,
     ILogger<DemoDataSeeder> logger)
@@ -54,6 +57,12 @@ public class DemoDataSeeder(
     private const int ArequipaFrontDeskAgentId = 10;
     private const int ArequipaPropertyId = 3;
     private const string DemoOperator = "Demo operator";
+
+    /// <summary>
+    ///     The demonstration accounts: the first operates Cartagena 04 and Lima 01, the second operates Arequipa 01.
+    /// </summary>
+    private static readonly (string Username, string Password, int OrganizationId)[] DemoAccounts =
+        [("demo.hostera", "HosteraDemo2026", 1), ("demo.arequipa", "HosteraDemo2026", 2)];
 
     private readonly Dictionary<(int PropertyId, string Name), int> _roomTypeIds = [];
     private readonly Dictionary<(int PropertyId, string Number), int> _roomIds = [];
@@ -64,12 +73,15 @@ public class DemoDataSeeder(
     private int _guestCardNumber = 0xA100;
 
     /// <summary>
-    ///     Loads the demonstration data when the database has no room types yet.
+    ///     Creates the missing demonstration accounts and loads the demonstration data when the database has no room
+    ///     types yet.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task SeedAsync(CancellationToken cancellationToken)
     {
+        await SeedDemoAccountsAsync(cancellationToken);
+
         if (await context.Set<RoomType>().AnyAsync(cancellationToken))
         {
             logger.LogInformation("The database already has data, so the demonstration data was not loaded.");
@@ -89,6 +101,20 @@ public class DemoDataSeeder(
         catch (InvalidOperationException exception)
         {
             logger.LogError(exception, "The demonstration data could not be loaded completely.");
+        }
+    }
+
+    private async Task SeedDemoAccountsAsync(CancellationToken cancellationToken)
+    {
+        foreach (var (username, password, organizationId) in DemoAccounts)
+        {
+            if (await iamContextFacade.FetchUserIdByUsernameAsync(username, cancellationToken) != 0)
+                continue;
+
+            if (await iamContextFacade.CreateUserAsync(username, password, organizationId, cancellationToken) == 0)
+                logger.LogError("The demonstration account {Username} could not be created.", username);
+            else
+                logger.LogInformation("The demonstration account {Username} was created.", username);
         }
     }
 
