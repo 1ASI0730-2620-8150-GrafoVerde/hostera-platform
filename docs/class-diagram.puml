@@ -3,7 +3,7 @@
     title
         Hostera Platform
         Class Diagram
-        Rooms, Bookings, Inventory, Access Control, Overview and Shared Bounded Contexts
+        Rooms, Bookings, Inventory, Access Control, Overview, IAM and Shared Bounded Contexts
     end title
 
     package "Shared Bounded Context" as Shared {
@@ -55,6 +55,35 @@
                 +DefaultTimeZone: string = "America/Lima"
                 +PropertyClock(TimeProvider timeProvider, IConfiguration configuration)
             }
+            class DatabaseHealthCheck {
+                +DatabaseHealthCheck(AppDbContext context)
+                +CheckHealthAsync(HealthCheckContext healthCheckContext, CancellationToken cancellationToken): Task<HealthCheckResult>
+            }
+            note right of DatabaseHealthCheck : Answers GET /health without a bearer token
+        }
+
+        package "Infrastructure.Interfaces.Asp.Authorization" as SharedAuthorization {
+            interface IPropertyScopeResolver {
+                +RouteKeys: IReadOnlyCollection<string>
+                +FindPropertyIdAsync(string routeKey, int id, CancellationToken cancellationToken): Task<int?>
+                +ToNotFoundResult(string routeKey, ControllerBase controller): IActionResult
+            }
+
+            interface IPropertyScopedResource {
+                +PropertyId: int
+            }
+        }
+
+        package "Infrastructure.Interfaces.Asp.OpenApi" as SharedOpenApi {
+            class BearerSecuritySchemeTransformer <<sealed>> {
+                +SchemeName: string = "Bearer"
+                +TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken cancellationToken): Task
+            }
+
+            class BearerSecurityOperationTransformer <<sealed>> {
+                +TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken): Task
+            }
+            note right of BearerSecurityOperationTransformer : Every operation except those marked with [AllowAnonymous] requires the bearer token
         }
     }
 
@@ -245,7 +274,9 @@
                 +Status: EDayStatus?
             }
 
-            interface IPropertyRepository extends IBaseRepository
+            interface IPropertyRepository extends IBaseRepository {
+                +FindByOrganizationIdAsync(int organizationId, CancellationToken cancellationToken): Task<IEnumerable<Property>>
+            }
 
             interface IRoomTypeRepository extends IBaseRepository {
                 +FindByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<IEnumerable<RoomType>>
@@ -351,6 +382,7 @@
 
             interface IPropertyQueryService {
                 +Handle(GetAllPropertiesQuery query, CancellationToken cancellationToken): Task<IEnumerable<Property>>
+                +Handle(GetAllPropertiesByOrganizationIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<Property>>
                 +Handle(GetPropertyByIdQuery query, CancellationToken cancellationToken): Task<Property?>
             }
 
@@ -391,7 +423,7 @@
             }
 
             class RoomsContextFacade implements IRoomsContextFacade {
-                +RoomsContextFacade(IRoomQueryService roomQueryService, IRoomTypeQueryService roomTypeQueryService, IRatePlanQueryService ratePlanQueryService, IStatusPeriodQueryService statusPeriodQueryService, IStatusPeriodCommandService statusPeriodCommandService)
+                +RoomsContextFacade(IPropertyQueryService propertyQueryService, IRoomQueryService roomQueryService, IRoomTypeQueryService roomTypeQueryService, IRatePlanQueryService ratePlanQueryService, IStatusPeriodQueryService statusPeriodQueryService, IStatusPeriodCommandService statusPeriodCommandService)
             }
         }
 
@@ -406,6 +438,8 @@
 
         package "Interfaces.ACL" as RoomsAcl {
             interface IRoomsContextFacade {
+                +FetchOrganizationIdByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<int?>
+                +FetchLatestOrganizationIdAsync(CancellationToken cancellationToken): Task<int>
                 +FetchRoomAsync(int roomId, CancellationToken cancellationToken): Task<RoomSummary?>
                 +FetchRoomTypeAsync(int roomTypeId, CancellationToken cancellationToken): Task<RoomTypeSummary?>
                 +FetchRatePlanAsync(int ratePlanId, CancellationToken cancellationToken): Task<RatePlanSummary?>
@@ -439,6 +473,11 @@
         }
 
         package "Interfaces.Rest" as RoomsRest {
+            class RoomsPropertyScopeResolver implements IPropertyScopeResolver {
+                +RoomsPropertyScopeResolver(IPropertyQueryService propertyQueryService, IRoomTypeQueryService roomTypeQueryService, IRoomQueryService roomQueryService, IRatePlanQueryService ratePlanQueryService)
+            }
+            note right of RoomsPropertyScopeResolver : Route keys: propertyId, roomTypeId, roomId, ratePlanId
+
             class PropertiesController {
                 +GetAllProperties(CancellationToken cancellationToken): Task<IActionResult>
                 +GetPropertyById(int propertyId, CancellationToken cancellationToken): Task<IActionResult>
@@ -546,6 +585,13 @@
         PropertyQueryService ..> IPropertyRepository
 
         PropertiesController ..> IPropertyQueryService
+        PropertiesController ..> IAuthenticatedUserAccessor
+        RoomsContextFacade ..> IPropertyQueryService
+        RoomsPropertyScopeResolver ..> IPropertyQueryService
+        RoomsPropertyScopeResolver ..> IRoomTypeQueryService
+        RoomsPropertyScopeResolver ..> IRoomQueryService
+        RoomsPropertyScopeResolver ..> IRatePlanQueryService
+        RoomsPropertyScopeResolver ..> RoomsActionResultAssembler
         PropertyRoomTypesController ..> IRoomTypeCommandService
         PropertyRoomTypesController ..> IRoomTypeQueryService
         RoomTypesController ..> IRoomTypeCommandService
@@ -1771,6 +1817,7 @@
             }
 
             class GetAllPropertyOverviewsQuery <<record>> {
+                +OrganizationId: int
                 +Date: DateOnly
             }
 
@@ -1933,7 +1980,7 @@
             class ExternalPropertyService <<ACL>> {
                 +ExternalPropertyService(IPropertyQueryService propertyQueryService)
                 +FetchPropertyByIdAsync(int propertyId, CancellationToken cancellationToken): Task<PropertyReadModel?>
-                +FetchAllPropertiesAsync(CancellationToken cancellationToken): Task<IReadOnlyList<PropertyReadModel>>
+                +FetchAllPropertiesAsync(int organizationId, CancellationToken cancellationToken): Task<IReadOnlyList<PropertyReadModel>>
             }
 
             class ExternalInventoryService <<ACL>> {
@@ -2126,6 +2173,7 @@
         PropertyDashboardController ..> DashboardResourceFromEntityAssembler
         PropertyOverviewsController ..> IOverviewQueryService
         PropertyOverviewsController ..> IClock
+        PropertyOverviewsController ..> IAuthenticatedUserAccessor
         PropertyOverviewsController ..> PropertyOverviewResourceFromEntityAssembler
         DashboardResource "1" *-- "0..1" PropertyOverviewResource
         DashboardResource "1" *-- "0..*" ArrivalSummaryResource
@@ -2141,6 +2189,302 @@
         PropertyOverviewResourceFromEntityAssembler ..> OverviewEnumNames
         OverviewActionResultAssembler ..> OverviewError
         OverviewActionResultAssembler ..> OverviewMessages
+    }
+
+    package "IAM Bounded Context" as Iam {
+        package "Domain" as IamDomain {
+            class User <<AggregateRoot>> {
+                +UsernameMaxLength: int = 50
+                +Id: int
+                +OrganizationId: int
+                +Username: string
+                +PasswordHash: string
+                +User(string username, string passwordHash, int organizationId)
+                +UpdateUsername(string username): User
+                +UpdatePasswordHash(string passwordHash): User
+            }
+            User ..|> IAuditableEntity
+
+            class SignUpCommand <<record>> {
+                +PasswordMinLength: int = 8
+                +PasswordMaxLength: int = 64
+                +Username: string
+                +Password: string
+                +OrganizationId: int?
+            }
+
+            class SignInCommand <<record>> {
+                +Username: string
+                +Password: string
+            }
+
+            class GetAllUsersQuery <<record>>
+            class GetAllUsersByOrganizationIdQuery <<record>> {
+                +OrganizationId: int
+            }
+            class GetUserByIdQuery <<record>> {
+                +Id: int
+            }
+            class GetUserByUsernameQuery <<record>> {
+                +Username: string
+            }
+
+            interface IUserRepository extends IBaseRepository {
+                +FindByUsernameAsync(string username, CancellationToken cancellationToken): Task<User?>
+                +FindByUsernameAsNoTrackingAsync(string username, CancellationToken cancellationToken): Task<User?>
+                +FindByIdAsNoTrackingAsync(int id, CancellationToken cancellationToken): Task<User?>
+                +ListAsNoTrackingAsync(CancellationToken cancellationToken): Task<IEnumerable<User>>
+                +FindByOrganizationIdAsNoTrackingAsync(int organizationId, CancellationToken cancellationToken): Task<IEnumerable<User>>
+                +ExistsByUsernameAsync(string username, CancellationToken cancellationToken): Task<bool>
+                +FindLatestOrganizationIdAsync(CancellationToken cancellationToken): Task<int>
+            }
+        }
+
+        package "Application" as IamApplication {
+            enum IamError {
+                InvalidInput
+                UserNotFound
+                UsernameAlreadyTaken
+                InvalidCredentials
+                AuthenticationRequired
+            }
+
+            interface IUserCommandService {
+                +Handle(SignInCommand command, CancellationToken cancellationToken): Task<Result<(User, string), IamError>>
+                +Handle(SignUpCommand command, CancellationToken cancellationToken): Task<Result<User, IamError>>
+            }
+
+            interface IUserQueryService {
+                +Handle(GetUserByIdQuery query, CancellationToken cancellationToken): Task<User?>
+                +Handle(GetAllUsersQuery query, CancellationToken cancellationToken): Task<IEnumerable<User>>
+                +Handle(GetAllUsersByOrganizationIdQuery query, CancellationToken cancellationToken): Task<IEnumerable<User>>
+                +Handle(GetUserByUsernameQuery query, CancellationToken cancellationToken): Task<User?>
+            }
+
+            interface IHashingService {
+                +HashPassword(string password): string
+                +VerifyPassword(string password, string passwordHash): bool
+            }
+
+            interface ITokenService {
+                +GenerateToken(User user): string
+                +ValidateToken(string token): Task<int?>
+            }
+
+            class UserCommandService implements IUserCommandService {
+                +UserCommandService(IUserRepository userRepository, ITokenService tokenService, IHashingService hashingService, ExternalPropertyService externalPropertyService, IUnitOfWork unitOfWork)
+            }
+            note right of UserCommandService : A user signed up without an organization starts a new one
+
+            class UserQueryService implements IUserQueryService {
+                +UserQueryService(IUserRepository userRepository)
+            }
+
+            class "ExternalPropertyService" as IamExternalPropertyService <<ACL>> {
+                +ExternalPropertyService(IRoomsContextFacade roomsContextFacade)
+                +FetchOrganizationIdByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<int?>
+                +FetchLatestOrganizationIdAsync(CancellationToken cancellationToken): Task<int>
+            }
+
+            class IamContextFacade implements IIamContextFacade {
+                +IamContextFacade(IUserCommandService userCommandService, IUserQueryService userQueryService)
+            }
+        }
+
+        package "Infrastructure" as IamInfrastructure {
+            class UserRepository extends BaseRepository implements IUserRepository
+
+            class HashingService implements IHashingService
+            note right of HashingService : BCrypt with a random salt per hash
+
+            class TokenSettings {
+                +SectionName: string = "TokenSettings"
+                +SecretMinBytes: int = 32
+                +Secret: string
+                +HasValidSecret: bool
+            }
+
+            class TokenService implements ITokenService {
+                +OrganizationIdClaimType: string = "organization_id"
+                +TokenService(IOptions<TokenSettings> tokenSettings, ILogger<TokenService> logger)
+            }
+            note right of TokenService : HMAC-SHA256 JSON Web Tokens valid for seven days
+
+            class AllowAnonymousAttribute <<Attribute>>
+
+            class RequestAuthorizationMiddleware {
+                +UserItemKey: string = "User"
+                +RequestAuthorizationMiddleware(RequestDelegate next)
+                +InvokeAsync(HttpContext context, IUserQueryService userQueryService, ITokenService tokenService): Task
+            }
+            note right of RequestAuthorizationMiddleware : Rejects controller requests without a valid bearer token with 401 AuthenticationRequired
+
+            class RequestAuthorizationMiddlewareExtensions <<static>> {
+                +UseRequestAuthorization(IApplicationBuilder builder): IApplicationBuilder
+            }
+
+            class AuthenticatedUserAccessor implements IAuthenticatedUserAccessor {
+                +AuthenticatedUserAccessor(IHttpContextAccessor httpContextAccessor)
+            }
+
+            class PropertyAccessFilter {
+                +PropertyIdRouteKey: string = "propertyId"
+                +PropertyAccessFilter(IAuthenticatedUserAccessor authenticatedUserAccessor, ExternalPropertyService externalPropertyService, IEnumerable<IPropertyScopeResolver> resolvers)
+                +OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next): Task
+            }
+            note right of PropertyAccessFilter : Resources of another organization get the not found response of their context
+        }
+
+        package "Interfaces.ACL" as IamAcl {
+            interface IIamContextFacade {
+                +CreateUserAsync(string username, string password, int organizationId, CancellationToken cancellationToken): Task<int>
+                +FetchUserIdByUsernameAsync(string username, CancellationToken cancellationToken): Task<int>
+                +FetchUsernameByUserIdAsync(int userId, CancellationToken cancellationToken): Task<string>
+                +FetchOrganizationIdByUserIdAsync(int userId, CancellationToken cancellationToken): Task<int?>
+            }
+
+            interface IAuthenticatedUserAccessor {
+                +AuthenticatedUser: AuthenticatedUser?
+            }
+
+            class AuthenticatedUser <<record>> {
+                +Id: int
+                +Username: string
+                +OrganizationId: int
+            }
+        }
+
+        package "Interfaces.Rest" as IamRest {
+            class AuthenticationController {
+                +SignIn(SignInResource resource, CancellationToken cancellationToken): Task<IActionResult>
+                +SignUp(SignUpResource resource, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class UsersController {
+                +GetAllUsers(CancellationToken cancellationToken): Task<IActionResult>
+                +GetUserById(int userId, CancellationToken cancellationToken): Task<IActionResult>
+            }
+
+            class SignInResource <<record>> {
+                +Username: string
+                +Password: string
+            }
+
+            class SignUpResource <<record>> {
+                +Username: string
+                +Password: string
+            }
+
+            class UserResource <<record>> {
+                +Id: int
+                +Username: string
+                +OrganizationId: int
+            }
+
+            class AuthenticatedUserResource <<record>> {
+                +Id: int
+                +Username: string
+                +OrganizationId: int
+                +Token: string
+            }
+
+            class SignInCommandFromResourceAssembler <<static>> {
+                +ToCommandFromResource(SignInResource resource): SignInCommand
+            }
+
+            class SignUpCommandFromResourceAssembler <<static>> {
+                +ToCommandFromResource(SignUpResource resource): SignUpCommand
+            }
+
+            class UserResourceFromEntityAssembler <<static>> {
+                +ToResourceFromEntity(User entity): UserResource
+            }
+
+            class AuthenticatedUserResourceFromEntityAssembler <<static>> {
+                +ToResourceFromEntity(User entity, string token): AuthenticatedUserResource
+            }
+
+            class IamActionResultAssembler <<static>> {
+                +ToActionResultFromResult<TValue>(ControllerBase controller, Result<TValue, IamError> result, Func<TValue, IActionResult> successAction): IActionResult
+                +ToActionResultFromMissingUser(ControllerBase controller): IActionResult
+            }
+        }
+
+        package "Resources" as IamLocalizedResources {
+            class IamMessages
+            note right of IamMessages : Marker type of the English and Spanish messages in IamMessages.resx and IamMessages.es.resx
+        }
+
+        IUserRepository ..> User
+        IUserCommandService ..> SignInCommand
+        IUserCommandService ..> SignUpCommand
+        IUserCommandService ..> IamError
+        UserCommandService ..> IUserRepository
+        UserCommandService ..> ITokenService
+        UserCommandService ..> IHashingService
+        UserCommandService ..> IamExternalPropertyService
+        UserCommandService ..> IUnitOfWork
+        UserQueryService ..> IUserRepository
+        IamExternalPropertyService ..> IRoomsContextFacade
+        IamContextFacade ..> IUserCommandService
+        IamContextFacade ..> IUserQueryService
+        TokenService ..> TokenSettings
+        RequestAuthorizationMiddleware ..> IUserQueryService
+        RequestAuthorizationMiddleware ..> ITokenService
+        RequestAuthorizationMiddleware ..> AllowAnonymousAttribute
+        RequestAuthorizationMiddleware ..> IamMessages
+        RequestAuthorizationMiddlewareExtensions ..> RequestAuthorizationMiddleware
+        AuthenticatedUserAccessor ..> RequestAuthorizationMiddleware
+        AuthenticatedUserAccessor ..> AuthenticatedUser
+        PropertyAccessFilter ..> IAuthenticatedUserAccessor
+        PropertyAccessFilter ..> IamExternalPropertyService
+        PropertyAccessFilter ..> IPropertyScopeResolver
+        PropertyAccessFilter ..> IPropertyScopedResource
+        AuthenticationController ..> IUserCommandService
+        AuthenticationController ..> AllowAnonymousAttribute
+        AuthenticationController ..> SignInCommandFromResourceAssembler
+        AuthenticationController ..> SignUpCommandFromResourceAssembler
+        AuthenticationController ..> AuthenticatedUserResourceFromEntityAssembler
+        AuthenticationController ..> UserResourceFromEntityAssembler
+        AuthenticationController ..> IamActionResultAssembler
+        UsersController ..> IUserQueryService
+        UsersController ..> IAuthenticatedUserAccessor
+        UsersController ..> UserResourceFromEntityAssembler
+        UsersController ..> IamActionResultAssembler
+        SignInCommandFromResourceAssembler ..> SignInCommand
+        SignUpCommandFromResourceAssembler ..> SignUpCommand
+        UserResourceFromEntityAssembler ..> UserResource
+        AuthenticatedUserResourceFromEntityAssembler ..> AuthenticatedUserResource
+        IamActionResultAssembler ..> IamError
+        IamActionResultAssembler ..> IamMessages
+        BearerSecurityOperationTransformer ..> AllowAnonymousAttribute
+    }
+
+    package "Property Scope Resolvers" as PropertyScopeResolvers {
+        class BookingsPropertyScopeResolver implements IPropertyScopeResolver {
+            +BookingsPropertyScopeResolver(IBookingQueryService bookingQueryService)
+        }
+        note right of BookingsPropertyScopeResolver : Route key: bookingId
+
+        class InventoryPropertyScopeResolver implements IPropertyScopeResolver {
+            +InventoryPropertyScopeResolver(IStorageLocationQueryService storageLocationQueryService, IInventoryItemQueryService inventoryItemQueryService)
+        }
+        note right of InventoryPropertyScopeResolver : Route keys: storageLocationId, inventoryItemId
+
+        class AccessControlPropertyScopeResolver implements IPropertyScopeResolver {
+            +AccessControlPropertyScopeResolver(ICredentialQueryService credentialQueryService, IAccessEventQueryService accessEventQueryService)
+        }
+        note right of AccessControlPropertyScopeResolver : Route keys: credentialId, accessEventId
+
+        BookingsPropertyScopeResolver ..> IBookingQueryService
+        BookingsPropertyScopeResolver ..> BookingsActionResultAssembler
+        InventoryPropertyScopeResolver ..> IStorageLocationQueryService
+        InventoryPropertyScopeResolver ..> IInventoryItemQueryService
+        InventoryPropertyScopeResolver ..> InventoryActionResultAssembler
+        AccessControlPropertyScopeResolver ..> ICredentialQueryService
+        AccessControlPropertyScopeResolver ..> IAccessEventQueryService
+        AccessControlPropertyScopeResolver ..> CredentialActionResultAssembler
+        AccessControlPropertyScopeResolver ..> AccessEventActionResultAssembler
     }
 
 @enduml
