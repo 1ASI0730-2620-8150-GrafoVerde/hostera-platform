@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>2.0</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <data name="BookingConfirmation.Subject" xml:space="preserve">
+        <value>Your booking {0} at {1}</value>
+    </data>
+    <data name="BookingConfirmation.Heading" xml:space="preserve">
+        <value>Booking received</value>
+    </data>
+    <data name="BookingConfirmation.Greeting" xml:space="preserve">
+        <value>Hello {0},</value>
+    </data>
+    <data name="BookingConfirmation.Intro" xml:space="preserve">
+        <value>Thank you for booking with {0}. We have received your booking with these details:</value>
+    </data>
+    <data name="BookingConfirmation.BookingCode" xml:space="preserve">
+        <value>Booking code</value>
+    </data>
+    <data name="BookingConfirmation.Property" xml:space="preserve">
+        <value>Property</value>
+    </data>
+    <data name="BookingConfirmation.CheckIn" xml:space="preserve">
+        <value>Check-in</value>
+    </data>
+    <data name="BookingConfirmation.CheckOut" xml:space="preserve">
+        <value>Check-out</value>
+    </data>
+    <data name="BookingConfirmation.RoomType" xml:space="preserve">
+        <value>Room type</value>
+    </data>
+    <data name="BookingConfirmation.Guests" xml:space="preserve">
+        <value>Guests</value>
+    </data>
+    <data name="BookingConfirmation.Total" xml:space="preserve">
+        <value>Total</value>
+    </data>
+    <data name="BookingConfirmation.Closing" xml:space="preserve">
+        <value>Please keep your booking code at hand when you arrive. We look forward to welcoming you.</value>
+    </data>
+    <data name="BookingConfirmation.Signature" xml:space="preserve">
+        <value>The {0} team</value>
+    </data>
+</root>
