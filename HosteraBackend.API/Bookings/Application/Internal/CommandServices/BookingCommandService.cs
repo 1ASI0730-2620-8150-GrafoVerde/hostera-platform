@@ -21,6 +21,10 @@ namespace HosteraBackend.API.Bookings.Application.Internal.CommandServices;
 /// <param name="externalRoomService">
 ///     The <see cref="ExternalRoomService" /> that reads the Rooms bounded context.
 /// </param>
+/// <param name="externalGuestCommunicationService">
+///     The <see cref="ExternalGuestCommunicationService" /> that emails guests through the Communications bounded
+///     context.
+/// </param>
 /// <param name="clock">
 ///     The <see cref="IClock" /> that provides the current moment and day of the property.
 /// </param>
@@ -30,6 +34,7 @@ namespace HosteraBackend.API.Bookings.Application.Internal.CommandServices;
 public class BookingCommandService(
     IBookingRepository bookingRepository,
     ExternalRoomService externalRoomService,
+    ExternalGuestCommunicationService externalGuestCommunicationService,
     IClock clock,
     IUnitOfWork unitOfWork)
     : IBookingCommandService
@@ -75,13 +80,17 @@ public class BookingCommandService(
             try
             {
                 await unitOfWork.CompleteAsync(cancellationToken);
-                return new Result<Booking, BookingError>.Success(booking);
             }
             catch (DbUpdateException) when (attempt < MaxCodeAttempts)
             {
                 bookingRepository.Remove(booking);
                 takenNumber = Booking.NumberOf(code);
+                continue;
             }
+
+            // The booking is saved: the guest is emailed a confirmation, and a problem sending it never undoes it
+            await externalGuestCommunicationService.SendBookingConfirmationAsync(booking);
+            return new Result<Booking, BookingError>.Success(booking);
         }
     }
 
