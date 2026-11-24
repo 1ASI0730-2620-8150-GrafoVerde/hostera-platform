@@ -35,6 +35,7 @@ Guidelines for maintaining this log:
 | [ADR-018](#adr-018--deploy-a-docker-container-on-render-with-a-managed-mysql-database) | Deploy a Docker container on Render with a managed MySQL database | Accepted |
 | [ADR-019](#adr-019--authenticate-requests-with-json-web-tokens-checked-by-a-request-middleware) | Authenticate requests with JSON Web Tokens checked by a request middleware | Accepted |
 | [ADR-020](#adr-020--limit-every-request-to-the-properties-of-the-organization-of-the-user) | Limit every request to the properties of the organization of the user | Accepted |
+| [ADR-021](#adr-021--send-guest-emails-through-resend-on-a-best-effort-basis) | Send guest emails through Resend on a best-effort basis | Accepted |
 
 ---
 
@@ -402,3 +403,26 @@ Each user belongs to one organization, and a user who signs up starts a new one.
 - (+) Resources of other organizations look exactly like missing ones.
 - (−) A new kind of resource addressed by its own route parameter needs a resolver, or its endpoints are not limited.
 - (−) Each checked request makes one or two extra queries.
+
+---
+
+## ADR-021 — Send guest emails through Resend on a best-effort basis
+
+- **Status:** Accepted
+- **Date:** 2026-11-23
+
+### Context
+Guests expect an email that confirms their booking, in the language they chose (English or Spanish). The team needs a transactional email provider with a free tier, a maintained .NET SDK, and no mail server to operate. Sending depends on a network service that can be slow, misconfigured, or down, while creating the booking must stay reliable, and developers must be able to run the API without an email account.
+
+### Decision
+Add a `Communications` bounded context that owns guest emails. Bookings calls its anti-corruption facade (ADR-011) after a new booking is saved, without domain events. Communications writes the email from `.resx` texts in the guest's language, sends it through [Resend](https://resend.com/) with its official .NET SDK (`Resend` NuGet package, registered as `IResend`), and records every attempt as a `BookingConfirmation` with the status `Sent`, `Failed`, or `Skipped`.
+
+Sending is best-effort: a rejected email, a network problem, or a failure to record the attempt is logged and never fails or undoes the booking. Without `Resend:ApiToken` the email is skipped, so local development needs no configuration. The API token is a secret set through `Resend__ApiToken`, and the sender comes from `Communications:SenderAddress`.
+
+### Consequences
+- (+) Guests receive a localized confirmation, and staff can tell from `booking_confirmations` whether each email was sent.
+- (+) Bookings does not depend on Resend; changing the provider only replaces the `IEmailService` implementation.
+- (+) A missing or invalid token never breaks booking creation, locally or in production.
+- (−) The email is sent within the create request, which adds the latency of one call to Resend (bounded by a 10-second timeout).
+- (−) A failed confirmation is not retried automatically.
+- (−) Until a domain is verified in Resend, the default `onboarding@resend.dev` sender only delivers to the Resend account owner.

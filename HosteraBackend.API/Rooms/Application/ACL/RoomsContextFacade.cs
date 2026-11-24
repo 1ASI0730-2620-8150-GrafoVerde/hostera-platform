@@ -40,6 +40,13 @@ public class RoomsContextFacade(
     }
 
     /// <inheritdoc />
+    public async Task<PropertySummary?> FetchPropertyAsync(int propertyId, CancellationToken cancellationToken)
+    {
+        var property = await propertyQueryService.Handle(new GetPropertyByIdQuery(propertyId), cancellationToken);
+        return property is null ? null : new PropertySummary(property.Id, property.Name, property.Currency);
+    }
+
+    /// <inheritdoc />
     public async Task<RoomSummary?> FetchRoomAsync(int roomId, CancellationToken cancellationToken)
     {
         var room = await roomQueryService.Handle(new GetRoomByIdQuery(roomId), cancellationToken);
@@ -52,7 +59,8 @@ public class RoomsContextFacade(
         var roomType = await roomTypeQueryService.Handle(new GetRoomTypeByIdQuery(roomTypeId), cancellationToken);
         return roomType is null
             ? null
-            : new RoomTypeSummary(roomType.Id, roomType.PropertyId, roomType.Capacity, roomType.IsActive);
+            : new RoomTypeSummary(roomType.Id, roomType.PropertyId, roomType.Name, roomType.Capacity,
+                roomType.IsActive);
     }
 
     /// <inheritdoc />

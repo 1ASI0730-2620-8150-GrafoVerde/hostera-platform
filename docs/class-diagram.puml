@@ -3,7 +3,7 @@
     title
         Hostera Platform
         Class Diagram
-        Rooms, Bookings, Inventory, Access Control, Overview, IAM and Shared Bounded Contexts
+        Rooms, Bookings, Inventory, Access Control, Overview, IAM, Communications and Shared Bounded Contexts
     end title
 
     package "Shared Bounded Context" as Shared {
@@ -440,6 +440,7 @@
             interface IRoomsContextFacade {
                 +FetchOrganizationIdByPropertyIdAsync(int propertyId, CancellationToken cancellationToken): Task<int?>
                 +FetchLatestOrganizationIdAsync(CancellationToken cancellationToken): Task<int>
+                +FetchPropertyAsync(int propertyId, CancellationToken cancellationToken): Task<PropertySummary?>
                 +FetchRoomAsync(int roomId, CancellationToken cancellationToken): Task<RoomSummary?>
                 +FetchRoomTypeAsync(int roomTypeId, CancellationToken cancellationToken): Task<RoomTypeSummary?>
                 +FetchRatePlanAsync(int ratePlanId, CancellationToken cancellationToken): Task<RatePlanSummary?>
@@ -455,9 +456,16 @@
                 +RoomTypeId: int
             }
 
+            class PropertySummary <<record>> {
+                +Id: int
+                +Name: string
+                +Currency: string
+            }
+
             class RoomTypeSummary <<record>> {
                 +Id: int
                 +PropertyId: int
+                +Name: string
                 +Capacity: int
                 +IsActive: bool
             }
@@ -612,6 +620,7 @@
         RatePlansController ..> IRatePlanQueryService
         RatePlansController ..> IPropertyQueryService
         PropertyDailyRatesController ..> IRatePlanQueryService
+        RoomsContextFacade ..> IPropertyQueryService
         RoomsContextFacade ..> IRoomQueryService
         RoomsContextFacade ..> IRoomTypeQueryService
         RoomsContextFacade ..> IRatePlanQueryService
@@ -803,8 +812,15 @@
             class BookableRoomType <<ReadModel>> <<record>> {
                 +Id: int
                 +PropertyId: int
+                +Name: string
                 +Capacity: int
                 +IsActive: bool
+            }
+
+            class BookedProperty <<ReadModel>> <<record>> {
+                +Id: int
+                +Name: string
+                +Currency: string
             }
 
             class BookableRatePlan <<ReadModel>> <<record>> {
@@ -828,6 +844,7 @@
                 +RoomId: int
                 +RatePlanId: int
                 +GuestRequest: string?
+                +NotifyGuest: bool = true
             }
 
             class UpdateBookingCommand <<record>> {
@@ -978,8 +995,14 @@
             }
 
             class BookingCommandService implements IBookingCommandService {
-                +BookingCommandService(IBookingRepository bookingRepository, ExternalRoomService externalRoomService, IClock clock, IUnitOfWork unitOfWork)
+                +BookingCommandService(IBookingRepository bookingRepository, ExternalRoomService externalRoomService, ExternalGuestCommunicationService externalGuestCommunicationService, IClock clock, IUnitOfWork unitOfWork)
             }
+
+            class ExternalGuestCommunicationService <<ACL>> {
+                +ExternalGuestCommunicationService(ICommunicationsContextFacade communicationsContextFacade, ExternalRoomService externalRoomService, ILogger logger)
+                +SendBookingConfirmationAsync(Booking booking): Task<bool>
+            }
+            note bottom of ExternalGuestCommunicationService : Called after a new booking is saved. A problem sending\nthe confirmation is logged and never undoes the booking.
 
             class BookingQueryService implements IBookingQueryService {
                 +BookingQueryService(IBookingRepository bookingRepository)
@@ -987,6 +1010,7 @@
 
             class ExternalRoomService <<ACL>> {
                 +ExternalRoomService(IRoomsContextFacade roomsContextFacade)
+                +FetchPropertyAsync(int propertyId, CancellationToken cancellationToken): Task<BookedProperty?>
                 +FetchRoomAsync(int roomId, CancellationToken cancellationToken): Task<BookableRoom?>
                 +FetchRoomTypeAsync(int roomTypeId, CancellationToken cancellationToken): Task<BookableRoomType?>
                 +FetchRatePlanAsync(int ratePlanId, CancellationToken cancellationToken): Task<BookableRatePlan?>
@@ -1092,6 +1116,9 @@
         ExternalRoomService ..> BookableRoom
         ExternalRoomService ..> BookableRoomType
         ExternalRoomService ..> BookableRatePlan
+        ExternalRoomService ..> BookedProperty
+        BookingCommandService ..> ExternalGuestCommunicationService
+        ExternalGuestCommunicationService ..> ExternalRoomService
         PropertyBookingsController ..> IBookingCommandService
         PropertyBookingsController ..> IBookingQueryService
         BookingsController ..> IBookingCommandService
@@ -2485,6 +2512,147 @@
         AccessControlPropertyScopeResolver ..> IAccessEventQueryService
         AccessControlPropertyScopeResolver ..> CredentialActionResultAssembler
         AccessControlPropertyScopeResolver ..> AccessEventActionResultAssembler
+
+    package "Communications Bounded Context" as Communications {
+        package "Domain" as CommunicationsDomain {
+            class BookingConfirmation <<Aggregate>> implements IAuditableEntity {
+                +BookingConfirmation(SendBookingConfirmationCommand command)
+                +MaxReasonLength: int = 500
+                +Id: int
+                +PropertyId: int
+                +BookingId: int
+                +BookingCode: string
+                +RecipientEmail: string
+                +Language: EEmailLanguage
+                +Status: EDeliveryStatus
+                +ProviderMessageId: string?
+                +Reason: string?
+                +ProcessedAt: DateTimeOffset?
+                +MarkSent(string? providerMessageId, DateTimeOffset sentAt): void
+                +MarkFailed(string? reason, DateTimeOffset failedAt): void
+                +MarkSkipped(string? reason, DateTimeOffset skippedAt): void
+            }
+
+            enum EDeliveryStatus <<ValueObject>> {
+                Pending
+                Sent
+                Failed
+                Skipped
+            }
+
+            enum EEmailLanguage <<ValueObject>> {
+                En
+                Es
+            }
+
+            class SendBookingConfirmationCommand <<record>> {
+                +PropertyId: int
+                +BookingId: int
+                +BookingCode: string
+                +GuestName: string
+                +GuestEmail: string
+                +Language: EEmailLanguage
+                +PropertyName: string
+                +RoomTypeName: string
+                +CheckInDate: DateOnly
+                +CheckOutDate: DateOnly
+                +Guests: int
+                +TotalAmount: decimal
+                +Currency: string
+            }
+
+            interface IBookingConfirmationRepository extends IBaseRepository {
+                +FindByBookingIdAsync(int bookingId, CancellationToken cancellationToken): Task<IEnumerable<BookingConfirmation>>
+            }
+        }
+
+        package "Application" as CommunicationsApplication {
+            enum CommunicationError {
+                InvalidInput
+            }
+
+            interface IBookingConfirmationCommandService {
+                +Handle(SendBookingConfirmationCommand command, CancellationToken cancellationToken): Task<Result<BookingConfirmation, CommunicationError>>
+            }
+
+            class BookingConfirmationCommandService implements IBookingConfirmationCommandService {
+                +BookingConfirmationCommandService(IBookingConfirmationRepository bookingConfirmationRepository, BookingConfirmationEmailTemplate bookingConfirmationEmailTemplate, IEmailService emailService, IClock clock, IUnitOfWork unitOfWork, ILogger logger)
+            }
+
+            class BookingConfirmationEmailTemplate {
+                +BookingConfirmationEmailTemplate(IStringLocalizer<CommunicationsMessages> localizer)
+                +Compose(SendBookingConfirmationCommand command): OutgoingEmail
+            }
+
+            interface IEmailService <<OutboundService>> {
+                +SendAsync(OutgoingEmail email, CancellationToken cancellationToken): Task<EmailDelivery>
+            }
+
+            class OutgoingEmail <<record>> {
+                +To: string
+                +Subject: string
+                +HtmlBody: string
+                +TextBody: string
+            }
+
+            class EmailDelivery <<record>> {
+                +Status: EDeliveryStatus
+                +ProviderMessageId: string?
+                +Reason: string?
+                +{static} Sent(string? providerMessageId): EmailDelivery
+                +{static} Failed(string reason): EmailDelivery
+                +{static} Skipped(string reason): EmailDelivery
+            }
+
+            class CommunicationsContextFacade implements ICommunicationsContextFacade {
+                +CommunicationsContextFacade(IBookingConfirmationCommandService bookingConfirmationCommandService)
+            }
+        }
+
+        package "Infrastructure" as CommunicationsInfrastructure {
+            class BookingConfirmationRepository extends BaseRepository implements IBookingConfirmationRepository
+
+            class EmailSettings {
+                +SectionName: string = "Communications"
+                +DefaultSenderAddress: string = "Hostera <onboarding@resend.dev>"
+                +SenderAddress: string
+            }
+
+            class EmailService implements IEmailService {
+                +EmailService(IResend resend, IOptions<ResendClientOptions> resendOptions, IOptions<EmailSettings> emailSettings, ILogger logger)
+            }
+            note bottom of EmailService : Sends through the Resend .NET SDK. Skips the email when Resend:ApiToken is not set,\nand reports a rejected email or a network problem as a failed delivery instead of throwing.
+        }
+
+        package "Interfaces.ACL" as CommunicationsAcl {
+            interface ICommunicationsContextFacade {
+                +SendBookingConfirmationAsync(int propertyId, int bookingId, string bookingCode, string guestName, string guestEmail, string languageCode, string propertyName, string roomTypeName, DateOnly checkInDate, DateOnly checkOutDate, int guests, decimal totalAmount, string currency, CancellationToken cancellationToken): Task<bool>
+            }
+        }
+
+        package "Resources" as CommunicationsLocalizedResources {
+            class CommunicationsMessages
+            note right of CommunicationsMessages : Marker type of the English and Spanish email texts in CommunicationsMessages.resx and CommunicationsMessages.es.resx
+        }
+
+        BookingConfirmation ..> SendBookingConfirmationCommand
+        BookingConfirmation ..> EDeliveryStatus
+        BookingConfirmation ..> EEmailLanguage
+        SendBookingConfirmationCommand ..> EEmailLanguage
+        EmailDelivery ..> EDeliveryStatus
+        IBookingConfirmationCommandService ..> CommunicationError
+        BookingConfirmationCommandService ..> IBookingConfirmationRepository
+        BookingConfirmationCommandService ..> BookingConfirmationEmailTemplate
+        BookingConfirmationCommandService ..> IEmailService
+        BookingConfirmationCommandService ..> IClock
+        BookingConfirmationEmailTemplate ..> CommunicationsMessages
+        BookingConfirmationEmailTemplate ..> OutgoingEmail
+        IEmailService ..> OutgoingEmail
+        IEmailService ..> EmailDelivery
+        EmailService ..> EmailSettings
+        CommunicationsContextFacade ..> IBookingConfirmationCommandService
+        CommunicationsContextFacade ..> SendBookingConfirmationCommand
+        ExternalGuestCommunicationService ..> ICommunicationsContextFacade
     }
 
 @enduml

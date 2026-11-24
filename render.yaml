@@ -24,3 +24,7 @@ services:
         value: "true"
       - key: Hostera__PublishApiReference
         value: "true"
+      - key: Resend__ApiToken
+        sync: false
+      - key: Communications__SenderAddress
+        value: "Hostera <onboarding@resend.dev>"

@@ -12,7 +12,7 @@ The platform follows Domain-Driven Design. Each bounded context lives in its own
 
 - **Domain**: aggregates, entities, value objects, commands, queries, and repository contracts. It has no dependency on ASP.NET Core or EF Core.
 - **Application**: command and query services that coordinate the domain, the error enum of the context, and the anti-corruption services that read other contexts. Services return a `Result<TValue, TError>` instead of throwing for business rule violations.
-- **Infrastructure**: EF Core mapping and repositories.
+- **Infrastructure**: EF Core mapping and repositories, and the clients of external services such as the email provider.
 - **Interfaces**: REST controllers, request and response resources, and the assemblers that turn resources into commands and aggregates into resources.
 
 The `Shared` context holds the building blocks used by every context: the base repository, the unit of work, the `Result` pattern, auditable timestamps, the kebab-case route convention, and the snake-case database naming convention.
@@ -27,6 +27,7 @@ The `Shared` context holds the building blocks used by every context: the base r
 | Access Control | RFID credentials for guests and staff, staff members, and access events. |
 | Overview | The operational dashboard of a property and the comparison of properties. It only reads other contexts. |
 | IAM | Users, their organization, sign-up, sign-in, bearer tokens, and the rule that limits every request to the properties of the organization of the user. |
+| Communications | The emails sent to guests: the confirmation of a new booking, sent through Resend, and the record of each one. It has no endpoints. |
 
 ## Endpoints
 
@@ -189,6 +190,26 @@ In the Development environment, or wherever `Hostera:PublishApiReference` is `tr
 
 The generated OpenAPI document is available at `/openapi/v1.json`.
 
+### 4) Send booking confirmation emails (optional)
+
+When a booking is created through the API, the Communications context emails the guest a confirmation in the guest's preferred language (English or Spanish) with the booking code, property, check-in and check-out days, room type, guests, and total. The email is sent through [Resend](https://resend.com/) with its official .NET SDK, and each attempt is recorded in the `booking_confirmations` table as `Sent`, `Failed`, or `Skipped`.
+
+Sending is optional. Without an API token, the confirmation is skipped and the log shows `Booking confirmation of BKG-1040 skipped: Resend:ApiToken is not configured.`, so local development works without an account. A rejected email, a network problem, or a missing token never fails or undoes the booking: the problem is logged and the API still answers `201 Created`. The demonstration bookings never send emails.
+
+To send real emails, create an API key in Resend and set it in the `Resend__ApiToken` environment variable before starting the API. Never commit it to `appsettings.json`:
+
+```bash
+export Resend__ApiToken='re_your_api_key'
+dotnet run --project HosteraBackend.API
+```
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `Resend:ApiToken` (`Resend__ApiToken`) | none | Secret API key of Resend. Without it, emails are skipped. |
+| `Communications:SenderAddress` (`Communications__SenderAddress`) | `Hostera <onboarding@resend.dev>` | Sender of the emails. |
+
+> Until a domain is verified in Resend, the default `onboarding@resend.dev` sender can only deliver to the email address of the Resend account owner, and Resend rejects any other recipient. To test, create a booking whose `guestEmail` is that address. To email real guests, verify a domain in Resend and set `Communications:SenderAddress` to an address on it, such as `Hostera <bookings@your-domain.com>`.
+
 ### Database initialization
 
 On startup, the API calls `Database.EnsureCreated()`. When the `hostera` database does not exist, it creates the database with every table and seeds the properties of both demonstration organizations and their staff members. When the database already exists, it changes nothing.
@@ -267,6 +288,7 @@ Accept-Language: es
 HosteraBackend.API/
   AccessControl/        Access Control bounded context
   Bookings/             Bookings bounded context
+  Communications/       Communications bounded context
   Iam/                  IAM bounded context
   Inventory/            Inventory Management bounded context
   Overview/             Overview bounded context
@@ -329,7 +351,7 @@ On Linux, add `--add-host=host.docker.internal:host-gateway` so the container re
 `render.yaml` describes the web service as a Render Blueprint: a free Docker web service built from the `main` branch, with `/health` as its health check, because every `/api/v1` endpoint except sign-in and sign-up requires a token.
 
 1. In the Render dashboard, choose **New > Blueprint** and select this repository.
-2. When Render asks for `ConnectionStrings__DefaultConnection`, paste the Aiven connection string. It is stored as a secret and never committed.
+2. When Render asks for `ConnectionStrings__DefaultConnection`, paste the Aiven connection string. It is stored as a secret and never committed. When it asks for `Resend__ApiToken`, paste the Resend API key, or leave it empty to skip the emails.
 3. Apply the Blueprint. Render generates `TokenSettings__Secret`, builds the image, starts the container, and redeploys it on every push to `main`.
 
 | Variable | Value | Purpose |
@@ -340,6 +362,8 @@ On Linux, add `--add-host=host.docker.internal:host-gateway` so the container re
 | `TokenSettings__Secret` | Generated by Render | Signs and validates the bearer tokens. At least 32 bytes; changing it signs every user out. |
 | `Hostera__SeedDemoData` | `true` | Loads the demonstration hotel into the new database. |
 | `Hostera__PublishApiReference` | `true` | Publishes the OpenAPI document and the Scalar reference. |
+| `Resend__ApiToken` | Resend API key | Sends the booking confirmation emails. Stored as a secret; without it, emails are skipped. |
+| `Communications__SenderAddress` | `Hostera <onboarding@resend.dev>` | Sender of the emails. Use an address on a domain verified in Resend to email any guest. |
 
 After the deployment, check that `https://<service>.onrender.com/health` returns `200 OK` and that the demonstration accounts can sign in, and set `VITE_HOSTERA_PLATFORM_API_URL` of the frontend to `https://<service>.onrender.com/api/v1`. A free Render service sleeps after a period without requests, so the first request after a pause can take close to a minute.
 
