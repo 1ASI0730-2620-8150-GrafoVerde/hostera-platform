@@ -245,11 +245,12 @@ builder.Services.AddScoped<IIamContextFacade, IamContextFacade>();
 
 var app = builder.Build();
 
-// Verify the database exists and create it with its tables when it does not
+// Apply pending migrations on startup: it creates the database when it does not exist and is safe to call when the
+// schema is up to date
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    context.Database.EnsureCreated();
+    context.Database.Migrate();
 
     // A new database receives a demonstration hotel when Hostera:SeedDemoData is true, the default in Development
     if (app.Configuration.GetValue("Hostera:SeedDemoData", app.Environment.IsDevelopment()))
