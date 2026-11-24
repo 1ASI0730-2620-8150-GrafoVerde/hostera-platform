@@ -160,6 +160,7 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentCommandService, PaymentCommandService>();
 builder.Services.AddScoped<IPaymentQueryService, PaymentQueryService>();
 builder.Services.AddScoped<ExternalGuestKeyCardService>();
+builder.Services.AddScoped<ExternalGuestCommunicationService>();
 builder.Services.AddScoped<IStayCommandService, StayCommandService>();
 builder.Services.AddScoped<IBookingsContextFacade, BookingsContextFacade>();
 
