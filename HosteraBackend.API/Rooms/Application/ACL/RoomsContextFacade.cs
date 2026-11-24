@@ -36,7 +36,8 @@ public class RoomsContextFacade(
         var roomType = await roomTypeQueryService.Handle(new GetRoomTypeByIdQuery(roomTypeId), cancellationToken);
         return roomType is null
             ? null
-            : new RoomTypeSummary(roomType.Id, roomType.PropertyId, roomType.Capacity, roomType.IsActive);
+            : new RoomTypeSummary(roomType.Id, roomType.PropertyId, roomType.Name, roomType.Capacity,
+                roomType.IsActive);
     }
 
     /// <inheritdoc />

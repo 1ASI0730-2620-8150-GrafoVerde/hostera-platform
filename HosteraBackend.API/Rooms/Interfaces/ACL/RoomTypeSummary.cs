@@ -5,6 +5,7 @@ namespace HosteraBackend.API.Rooms.Interfaces.ACL;
 /// </summary>
 /// <param name="Id">The identifier of the room type.</param>
 /// <param name="PropertyId">The identifier of the property that owns the room type.</param>
+/// <param name="Name">The name of the room type, such as Double Room.</param>
 /// <param name="Capacity">The number of guests a room of this type can host.</param>
 /// <param name="IsActive">Whether new rooms and bookings can use the room type.</param>
-public record RoomTypeSummary(int Id, int PropertyId, int Capacity, bool IsActive);
+public record RoomTypeSummary(int Id, int PropertyId, string Name, int Capacity, bool IsActive);
