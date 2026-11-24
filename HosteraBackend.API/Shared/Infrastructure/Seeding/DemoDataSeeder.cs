@@ -408,7 +408,7 @@ public class DemoDataSeeder(
 
         var booking = Expect(await bookingCommandService.Handle(new CreateBookingCommand(propertyId, guest, email,
             null, language, checkInDate, checkInDate.AddDays(nights), 2, roomTypeId, roomId,
-            _ratePlanIds[(propertyId, plan)], null), cancellationToken), $"booking of {guest}");
+            _ratePlanIds[(propertyId, plan)], null, NotifyGuest: false), cancellationToken), $"booking of {guest}");
         return booking.Id;
     }
 
