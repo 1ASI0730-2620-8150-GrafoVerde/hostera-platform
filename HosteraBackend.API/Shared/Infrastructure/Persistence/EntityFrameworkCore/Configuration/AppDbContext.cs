@@ -1,5 +1,6 @@
 using HosteraBackend.API.AccessControl.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using HosteraBackend.API.Bookings.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
+using HosteraBackend.API.Communications.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using HosteraBackend.API.Inventory.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
@@ -30,6 +31,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         // Bookings Bounded Context
         builder.ApplyBookingsConfiguration();
+
+        // Communications Bounded Context
+        builder.ApplyCommunicationsConfiguration();
 
         builder.UseSnakeCaseNamingConvention();
     }
