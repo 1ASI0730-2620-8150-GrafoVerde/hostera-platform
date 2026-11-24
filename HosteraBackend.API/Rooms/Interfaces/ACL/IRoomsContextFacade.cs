@@ -7,6 +7,14 @@ namespace HosteraBackend.API.Rooms.Interfaces.ACL;
 public interface IRoomsContextFacade
 {
     /// <summary>
+    ///     Fetches a property.
+    /// </summary>
+    /// <param name="propertyId">The identifier of the property.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The property, or null when it does not exist.</returns>
+    Task<PropertySummary?> FetchPropertyAsync(int propertyId, CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Fetches a room.
     /// </summary>
     /// <param name="roomId">The identifier of the room.</param>
