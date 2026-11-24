@@ -391,7 +391,7 @@
             }
 
             class RoomsContextFacade implements IRoomsContextFacade {
-                +RoomsContextFacade(IRoomQueryService roomQueryService, IRoomTypeQueryService roomTypeQueryService, IRatePlanQueryService ratePlanQueryService, IStatusPeriodQueryService statusPeriodQueryService, IStatusPeriodCommandService statusPeriodCommandService)
+                +RoomsContextFacade(IPropertyQueryService propertyQueryService, IRoomQueryService roomQueryService, IRoomTypeQueryService roomTypeQueryService, IRatePlanQueryService ratePlanQueryService, IStatusPeriodQueryService statusPeriodQueryService, IStatusPeriodCommandService statusPeriodCommandService)
             }
         }
 
@@ -406,6 +406,7 @@
 
         package "Interfaces.ACL" as RoomsAcl {
             interface IRoomsContextFacade {
+                +FetchPropertyAsync(int propertyId, CancellationToken cancellationToken): Task<PropertySummary?>
                 +FetchRoomAsync(int roomId, CancellationToken cancellationToken): Task<RoomSummary?>
                 +FetchRoomTypeAsync(int roomTypeId, CancellationToken cancellationToken): Task<RoomTypeSummary?>
                 +FetchRatePlanAsync(int ratePlanId, CancellationToken cancellationToken): Task<RatePlanSummary?>
@@ -421,9 +422,16 @@
                 +RoomTypeId: int
             }
 
+            class PropertySummary <<record>> {
+                +Id: int
+                +Name: string
+                +Currency: string
+            }
+
             class RoomTypeSummary <<record>> {
                 +Id: int
                 +PropertyId: int
+                +Name: string
                 +Capacity: int
                 +IsActive: bool
             }
@@ -566,6 +574,7 @@
         RatePlansController ..> IRatePlanQueryService
         RatePlansController ..> IPropertyQueryService
         PropertyDailyRatesController ..> IRatePlanQueryService
+        RoomsContextFacade ..> IPropertyQueryService
         RoomsContextFacade ..> IRoomQueryService
         RoomsContextFacade ..> IRoomTypeQueryService
         RoomsContextFacade ..> IRatePlanQueryService
@@ -757,8 +766,15 @@
             class BookableRoomType <<ReadModel>> <<record>> {
                 +Id: int
                 +PropertyId: int
+                +Name: string
                 +Capacity: int
                 +IsActive: bool
+            }
+
+            class BookedProperty <<ReadModel>> <<record>> {
+                +Id: int
+                +Name: string
+                +Currency: string
             }
 
             class BookableRatePlan <<ReadModel>> <<record>> {
@@ -782,6 +798,7 @@
                 +RoomId: int
                 +RatePlanId: int
                 +GuestRequest: string?
+                +NotifyGuest: bool = true
             }
 
             class UpdateBookingCommand <<record>> {
@@ -932,8 +949,14 @@
             }
 
             class BookingCommandService implements IBookingCommandService {
-                +BookingCommandService(IBookingRepository bookingRepository, ExternalRoomService externalRoomService, IClock clock, IUnitOfWork unitOfWork)
+                +BookingCommandService(IBookingRepository bookingRepository, ExternalRoomService externalRoomService, ExternalGuestCommunicationService externalGuestCommunicationService, IClock clock, IUnitOfWork unitOfWork)
             }
+
+            class ExternalGuestCommunicationService <<ACL>> {
+                +ExternalGuestCommunicationService(ICommunicationsContextFacade communicationsContextFacade, ExternalRoomService externalRoomService, ILogger logger)
+                +SendBookingConfirmationAsync(Booking booking): Task<bool>
+            }
+            note bottom of ExternalGuestCommunicationService : Called after a new booking is saved. A problem sending\nthe confirmation is logged and never undoes the booking.
 
             class BookingQueryService implements IBookingQueryService {
                 +BookingQueryService(IBookingRepository bookingRepository)
@@ -941,6 +964,7 @@
 
             class ExternalRoomService <<ACL>> {
                 +ExternalRoomService(IRoomsContextFacade roomsContextFacade)
+                +FetchPropertyAsync(int propertyId, CancellationToken cancellationToken): Task<BookedProperty?>
                 +FetchRoomAsync(int roomId, CancellationToken cancellationToken): Task<BookableRoom?>
                 +FetchRoomTypeAsync(int roomTypeId, CancellationToken cancellationToken): Task<BookableRoomType?>
                 +FetchRatePlanAsync(int ratePlanId, CancellationToken cancellationToken): Task<BookableRatePlan?>
@@ -1046,6 +1070,9 @@
         ExternalRoomService ..> BookableRoom
         ExternalRoomService ..> BookableRoomType
         ExternalRoomService ..> BookableRatePlan
+        ExternalRoomService ..> BookedProperty
+        BookingCommandService ..> ExternalGuestCommunicationService
+        ExternalGuestCommunicationService ..> ExternalRoomService
         PropertyBookingsController ..> IBookingCommandService
         PropertyBookingsController ..> IBookingQueryService
         BookingsController ..> IBookingCommandService
@@ -2282,6 +2309,7 @@
         EmailService ..> EmailSettings
         CommunicationsContextFacade ..> IBookingConfirmationCommandService
         CommunicationsContextFacade ..> SendBookingConfirmationCommand
+        ExternalGuestCommunicationService ..> ICommunicationsContextFacade
     }
 
 @enduml
