@@ -15,6 +15,16 @@ using HosteraBackend.API.Bookings.Application.QueryServices;
 using HosteraBackend.API.Bookings.Domain.Repositories;
 using HosteraBackend.API.Bookings.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Bookings.Interfaces.ACL;
+using HosteraBackend.API.Communications.Application.ACL;
+using HosteraBackend.API.Communications.Application.CommandServices;
+using HosteraBackend.API.Communications.Application.Internal.CommandServices;
+using HosteraBackend.API.Communications.Application.Internal.EmailTemplates;
+using HosteraBackend.API.Communications.Application.Internal.OutboundServices;
+using HosteraBackend.API.Communications.Domain.Repositories;
+using HosteraBackend.API.Communications.Infrastructure.Email.Resend.Configuration;
+using HosteraBackend.API.Communications.Infrastructure.Email.Resend.Services;
+using HosteraBackend.API.Communications.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Communications.Interfaces.ACL;
 using HosteraBackend.API.Inventory.Application.CommandServices;
 using HosteraBackend.API.Inventory.Application.Internal.CommandServices;
 using HosteraBackend.API.Inventory.Application.Internal.QueryServices;
@@ -43,6 +53,7 @@ using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.R
 using HosteraBackend.API.Shared.Infrastructure.Seeding;
 using HosteraBackend.API.Shared.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
+using Resend;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -151,6 +162,20 @@ builder.Services.AddScoped<IPaymentQueryService, PaymentQueryService>();
 builder.Services.AddScoped<ExternalGuestKeyCardService>();
 builder.Services.AddScoped<IStayCommandService, StayCommandService>();
 builder.Services.AddScoped<IBookingsContextFacade, BookingsContextFacade>();
+
+// Communications Bounded Context
+// Resend client: the API token comes from Resend:ApiToken (Resend__ApiToken); without it, emails are skipped
+builder.Services.AddOptions();
+builder.Services.AddHttpClient<ResendClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.Configure<ResendClientOptions>(options =>
+    options.ApiToken = builder.Configuration["Resend:ApiToken"] ?? string.Empty);
+builder.Services.AddTransient<IResend, ResendClient>();
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<BookingConfirmationEmailTemplate>();
+builder.Services.AddScoped<IBookingConfirmationRepository, BookingConfirmationRepository>();
+builder.Services.AddScoped<IBookingConfirmationCommandService, BookingConfirmationCommandService>();
+builder.Services.AddScoped<ICommunicationsContextFacade, CommunicationsContextFacade>();
 
 // Overview Bounded Context
 builder.Services.AddScoped<IOverviewReadRepository, OverviewReadRepository>();
