@@ -12,7 +12,7 @@ The platform follows Domain-Driven Design. Each bounded context lives in its own
 
 - **Domain**: aggregates, entities, value objects, commands, queries, and repository contracts. It has no dependency on ASP.NET Core or EF Core.
 - **Application**: command and query services that coordinate the domain, the error enum of the context, and the anti-corruption services that read other contexts. Services return a `Result<TValue, TError>` instead of throwing for business rule violations.
-- **Infrastructure**: EF Core mapping and repositories.
+- **Infrastructure**: EF Core mapping and repositories, and the clients of external services such as the email provider.
 - **Interfaces**: REST controllers, request and response resources, and the assemblers that turn resources into commands and aggregates into resources.
 
 The `Shared` context holds the building blocks used by every context: the base repository, the unit of work, the `Result` pattern, auditable timestamps, the kebab-case route convention, and the snake-case database naming convention.
@@ -26,14 +26,20 @@ The `Shared` context holds the building blocks used by every context: the base r
 | Inventory Management | Storage locations, inventory items, their stock per location, and stock adjustments. |
 | Access Control | RFID credentials for guests and staff, staff members, and access events. |
 | Overview | The operational dashboard of a property and the comparison of properties. It only reads other contexts. |
+| IAM | Users, their organization, sign-up, sign-in, bearer tokens, and the rule that limits every request to the properties of the organization of the user. |
+| Communications | The emails sent to guests: the confirmation of a new booking, sent through Resend, and the record of each one. It has no endpoints. |
 
 ## Endpoints
 
-All routes start with `/api/v1`.
+All routes start with `/api/v1`. Every endpoint except sign-in and sign-up requires a bearer token; see [Authentication](#authentication).
 
 | Context | Method and route | Description |
 | --- | --- | --- |
-| Rooms | `GET /properties` | List the properties. |
+| IAM | `POST /authentication/sign-in` | Check a username and password and return the user with its bearer token. Public. |
+| IAM | `POST /authentication/sign-up` | Register a user in a new organization. Public. |
+| IAM | `GET /users` | List the users of the organization of the signed-in user. |
+| IAM | `GET /users/{userId}` | Get a user of the organization of the signed-in user. |
+| Rooms | `GET /properties` | List the properties of the organization of the signed-in user. |
 | Rooms | `GET /properties/{propertyId}` | Get a property. |
 | Rooms | `GET /properties/{propertyId}/room-types` | List the room types of a property. |
 | Rooms | `POST /properties/{propertyId}/room-types` | Create a room type. |
@@ -79,9 +85,56 @@ All routes start with `/api/v1`.
 | Access Control | `GET /properties/{propertyId}/access-events` | List the access events of a property, paginated. |
 | Access Control | `GET /access-events/{accessEventId}`, `POST /access-events` | Get and record access events. |
 | Overview | `GET /properties/{propertyId}/dashboard` | Get the operational dashboard of a property, including today's arrivals with their status and balance due. |
-| Overview | `GET /property-overviews` | Compare the properties on a date. |
+| Overview | `GET /property-overviews` | Compare the properties of the organization of the signed-in user on a date. |
+
+`GET /health` (outside `/api/v1`) reports whether the API can reach its database, without a token.
 
 Scalar lists every endpoint with its request and response resources.
+
+## Authentication
+
+Sign in to get a bearer token:
+
+```http
+POST /api/v1/authentication/sign-in
+Content-Type: application/json
+
+{ "username": "demo.hostera", "password": "HosteraDemo2026" }
+```
+
+```json
+{ "id": 1, "username": "demo.hostera", "organizationId": 1, "token": "eyJhbGciOi..." }
+```
+
+Send the token in the `Authorization` header of every other request. It expires seven days after it is issued:
+
+```http
+GET /api/v1/properties
+Authorization: Bearer eyJhbGciOi...
+```
+
+A request without a valid token gets `401 Unauthorized` with the `AuthenticationRequired` code and a `WWW-Authenticate: Bearer` header. A wrong username or password gets `401` with the `InvalidCredentials` code.
+
+`POST /api/v1/authentication/sign-up` takes the same body, with a password of 8 to 64 characters, and answers `201 Created` with `{ "id", "username", "organizationId" }`. A user who signs up starts a new organization, which has no properties yet.
+
+### Organizations
+
+Every user belongs to one organization and only reaches the properties of that organization. `GET /properties`, `GET /property-overviews`, and `GET /users` list only those, and a route with the `propertyId` of another organization, or with a room, booking, credential, or other resource of one of its properties, answers `404 Not Found` exactly like a resource that does not exist.
+
+### Demonstration accounts
+
+When `Hostera:SeedDemoData` is `true`, the API creates these accounts if they do not exist:
+
+| Username | Password | Organization | Properties |
+| --- | --- | --- | --- |
+| `demo.hostera` | `HosteraDemo2026` | 1 | Cartagena 04 and Lima 01 |
+| `demo.arequipa` | `HosteraDemo2026` | 2 | Arequipa 01 |
+
+They are public demonstration credentials; do not reuse them for real data.
+
+### Scalar
+
+Scalar declares the `Bearer` security scheme. Sign in from Scalar, copy the `token`, and paste it in the authentication section so the next requests send it.
 
 ## Technologies
 
@@ -90,6 +143,7 @@ Scalar lists every endpoint with its request and response resources.
 - MySQL 8
 - OpenAPI with Scalar as the API reference
 - Humanizer for table name pluralization
+- BCrypt.Net-Next for password hashing and Microsoft.IdentityModel.JsonWebTokens for bearer tokens
 
 ## Getting started
 
@@ -118,6 +172,8 @@ On Windows, define it as a user environment variable. Restart your terminal or I
 
 Rules that depend on the current day, such as when a booking can be checked in, use the time zone in `Hostera:TimeZone` (`America/Lima` by default).
 
+`appsettings.Development.json` holds a development-only `TokenSettings:Secret` that signs the bearer tokens. Other environments must set their own secret, at least 32 bytes long, with the `TokenSettings__Secret` environment variable; the API does not start without one.
+
 ### 2) Restore and run the API
 
 ```bash
@@ -134,21 +190,46 @@ In the Development environment, or wherever `Hostera:PublishApiReference` is `tr
 
 The generated OpenAPI document is available at `/openapi/v1.json`.
 
+### 4) Send booking confirmation emails (optional)
+
+When a booking is created through the API, the Communications context emails the guest a confirmation in the guest's preferred language (English or Spanish) with the booking code, property, check-in and check-out days, room type, guests, and total. The email is sent through [Resend](https://resend.com/) with its official .NET SDK, and each attempt is recorded in the `booking_confirmations` table as `Sent`, `Failed`, or `Skipped`.
+
+Sending is optional. Without an API token, the confirmation is skipped and the log shows `Booking confirmation of BKG-1040 skipped: Resend:ApiToken is not configured.`, so local development works without an account. A rejected email, a network problem, or a missing token never fails or undoes the booking: the problem is logged and the API still answers `201 Created`. The demonstration bookings never send emails.
+
+To send real emails, create an API key in Resend and set it in the `Resend__ApiToken` environment variable before starting the API. Never commit it to `appsettings.json`:
+
+```bash
+export Resend__ApiToken='re_your_api_key'
+dotnet run --project HosteraBackend.API
+```
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `Resend:ApiToken` (`Resend__ApiToken`) | none | Secret API key of Resend. Without it, emails are skipped. |
+| `Communications:SenderAddress` (`Communications__SenderAddress`) | `Hostera <onboarding@resend.dev>` | Sender of the emails. |
+
+> Until a domain is verified in Resend, the default `onboarding@resend.dev` sender can only deliver to the email address of the Resend account owner, and Resend rejects any other recipient. To test, create a booking whose `guestEmail` is that address. To email real guests, verify a domain in Resend and set `Communications:SenderAddress` to an address on it, such as `Hostera <bookings@your-domain.com>`.
+
 ### Database initialization
 
-On startup, the API calls `Database.EnsureCreated()`. When the `hostera` database does not exist, it creates the database with every table and seeds the properties and staff members. When the database already exists, it changes nothing.
+On startup, the API calls `Database.Migrate()`. When the `hostera` database does not exist, it creates it and applies every migration in `HosteraBackend.API/Migrations`; when it exists, it applies only the migrations it has not run yet, recorded in the `__EFMigrationsHistory` table. With `Hostera:SeedDemoData`, a new database then receives the [demonstration data](#demonstration-data).
 
-Because the project does not use migrations yet, **drop the database after pulling changes that add or modify entities**, and let the API create it again:
+After changing an entity or its mapping, add a migration with the `dotnet-ef` tool pinned in `dotnet-tools.json` and commit it with the change:
+
+```bash
+dotnet tool restore
+dotnet ef migrations add <MigrationName> --project HosteraBackend.API --output-dir Migrations
+```
+
+The next start of the API applies it. A database created before the migrations, by `EnsureCreated`, has no migration history: drop it once and let the API create it again.
 
 ```sql
 DROP DATABASE hostera;
 ```
 
-This removes the data created through the API.
-
 ### Demonstration data
 
-A new database receives a demonstration hotel the first time the API starts when `Hostera:SeedDemoData` is `true`, which is the default in the Development environment. Both properties get the room types, rooms, rate plans, storage locations, inventory items, and staff credentials of the frontend mock data, and their bookings, payments, room statuses, and access events are placed around the current day: stays from the last weeks, guests staying now, today's arrivals, and bookings ahead. A database that already has room types is left unchanged.
+A new database receives a demonstration hotel the first time the API starts when `Hostera:SeedDemoData` is `true`, which is the default in the Development environment. Cartagena 04 and Lima 01 get the room types, rooms, rate plans, storage locations, inventory items, and staff credentials of the frontend mock data, and their bookings, payments, room statuses, and access events are placed around the current day: stays from the last weeks, guests staying now, today's arrivals, and bookings ahead. Arequipa 01, the property of the second organization, gets a smaller hotel built the same way. A database that already has room types is left unchanged, but the [demonstration accounts](#demonstration-accounts) are created whenever they are missing.
 
 To start with an empty database instead, set `Hostera:SeedDemoData` to `false` in `appsettings.Development.json` or with the `Hostera__SeedDemoData=false` environment variable. In other environments, such as the deployed API, set `Hostera__SeedDemoData=true` to load it. To load the demonstration data again, drop the database and restart the API.
 
@@ -212,13 +293,16 @@ Accept-Language: es
 HosteraBackend.API/
   AccessControl/        Access Control bounded context
   Bookings/             Bookings bounded context
+  Communications/       Communications bounded context
+  Iam/                  IAM bounded context
   Inventory/            Inventory Management bounded context
+  Migrations/           EF Core migrations of the database schema
   Overview/             Overview bounded context
   Rooms/                Rooms & Availability bounded context
   Shared/               Shared building blocks
     Application/        Result pattern
     Domain/             Auditable entity and repository contracts
-    Infrastructure/     EF Core context, conventions, and base repository
+    Infrastructure/     EF Core context, conventions, base repository, health check, and OpenAPI security
   Program.cs            Service registration and HTTP pipeline
 docs/
   class-diagram.puml    PlantUML class diagram
@@ -252,6 +336,7 @@ docker run --rm -p 8080:8080 \
   -e "ConnectionStrings__DefaultConnection=server=host.docker.internal;user=root;password=$HOSTERA_DB_PASSWORD;database=hostera" \
   -e Hostera__SeedDemoData=true \
   -e Hostera__PublishApiReference=true \
+  -e "TokenSettings__Secret=$(openssl rand -base64 48)" \
   hostera-platform
 ```
 
@@ -269,21 +354,26 @@ On Linux, add `--add-host=host.docker.internal:host-gateway` so the container re
 
 ### Deploy to Render
 
-`render.yaml` describes the web service as a Render Blueprint: a free Docker web service built from the `main` branch, with `/api/v1/properties` as its health check.
+`render.yaml` describes the web service as a Render Blueprint: a free Docker web service built from the `main` branch, with `/health` as its health check, because every `/api/v1` endpoint except sign-in and sign-up requires a token.
 
 1. In the Render dashboard, choose **New > Blueprint** and select this repository.
-2. When Render asks for `ConnectionStrings__DefaultConnection`, paste the Aiven connection string. It is stored as a secret and never committed.
-3. Apply the Blueprint. Render builds the image, starts the container, and redeploys it on every push to `main`.
+2. When Render asks for `ConnectionStrings__DefaultConnection`, paste the Aiven connection string. It is stored as a secret and never committed. When it asks for `Resend__ApiToken`, paste the Resend API key, or leave it empty to skip the emails.
+3. Apply the Blueprint. Render generates `TokenSettings__Secret`, builds the image, starts the container, and redeploys it on every push to `main`.
 
 | Variable | Value | Purpose |
 | --- | --- | --- |
 | `ASPNETCORE_ENVIRONMENT` | `Production` | Runs the API with the production settings. |
 | `PORT` | `8080` | Tells Render the port the container listens on. |
 | `ConnectionStrings__DefaultConnection` | Aiven connection string | Connects the API to its MySQL database. |
+| `TokenSettings__Secret` | Generated by Render | Signs and validates the bearer tokens. At least 32 bytes; changing it signs every user out. |
 | `Hostera__SeedDemoData` | `true` | Loads the demonstration hotel into the new database. |
 | `Hostera__PublishApiReference` | `true` | Publishes the OpenAPI document and the Scalar reference. |
+| `Resend__ApiToken` | Resend API key | Sends the booking confirmation emails. Stored as a secret; without it, emails are skipped. |
+| `Communications__SenderAddress` | `Hostera <onboarding@resend.dev>` | Sender of the emails. Use an address on a domain verified in Resend to email any guest. |
 
-After the deployment, check that `https://<service>.onrender.com/api/v1/properties` returns `200 OK`, and set `VITE_HOSTERA_PLATFORM_API_URL` of the frontend to `https://<service>.onrender.com/api/v1`. A free Render service sleeps after a period without requests, so the first request after a pause can take close to a minute.
+After the deployment, check that `https://<service>.onrender.com/health` returns `200 OK` and that the demonstration accounts can sign in, and set `VITE_HOSTERA_PLATFORM_API_URL` of the frontend to `https://<service>.onrender.com/api/v1`. A free Render service sleeps after a period without requests, so the first request after a pause can take close to a minute.
+
+Each deployment applies the pending migrations on startup, so the database keeps its data across releases. A database created before the migrations, by `EnsureCreated`, has no migration history: drop the `hostera` database on Aiven once before the first deployment with migrations, and let the API create and seed it again.
 
 
 ## License

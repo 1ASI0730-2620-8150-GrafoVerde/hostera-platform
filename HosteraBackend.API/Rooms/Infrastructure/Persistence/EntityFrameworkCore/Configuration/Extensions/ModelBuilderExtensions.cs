@@ -25,7 +25,8 @@ public static class ModelBuilderExtensions
             property.Property(p => p.Currency).IsRequired().HasColumnType("char(3)");
             property.HasData(
                 new { Id = 1, OrganizationId = 1, Name = "Cartagena 04", City = "Cartagena", Currency = "PEN" },
-                new { Id = 2, OrganizationId = 1, Name = "Lima 01", City = "Lima", Currency = "PEN" });
+                new { Id = 2, OrganizationId = 1, Name = "Lima 01", City = "Lima", Currency = "PEN" },
+                new { Id = 3, OrganizationId = 2, Name = "Arequipa 01", City = "Arequipa", Currency = "PEN" });
         });
 
         builder.Entity<RoomType>(roomType =>

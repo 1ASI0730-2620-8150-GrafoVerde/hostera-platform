@@ -6,6 +6,7 @@ using HosteraBackend.API.AccessControl.Application.QueryServices;
 using HosteraBackend.API.AccessControl.Domain.Repositories;
 using HosteraBackend.API.AccessControl.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.AccessControl.Interfaces.ACL;
+using HosteraBackend.API.AccessControl.Interfaces.Rest.Authorization;
 using HosteraBackend.API.Bookings.Application.ACL;
 using HosteraBackend.API.Bookings.Application.CommandServices;
 using HosteraBackend.API.Bookings.Application.Internal.CommandServices;
@@ -15,12 +16,39 @@ using HosteraBackend.API.Bookings.Application.QueryServices;
 using HosteraBackend.API.Bookings.Domain.Repositories;
 using HosteraBackend.API.Bookings.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Bookings.Interfaces.ACL;
+using HosteraBackend.API.Bookings.Interfaces.Rest.Authorization;
+using HosteraBackend.API.Communications.Application.ACL;
+using HosteraBackend.API.Communications.Application.CommandServices;
+using HosteraBackend.API.Communications.Application.Internal.CommandServices;
+using HosteraBackend.API.Communications.Application.Internal.EmailTemplates;
+using HosteraBackend.API.Communications.Application.Internal.OutboundServices;
+using HosteraBackend.API.Communications.Domain.Repositories;
+using HosteraBackend.API.Communications.Infrastructure.Email.Resend.Configuration;
+using HosteraBackend.API.Communications.Infrastructure.Email.Resend.Services;
+using HosteraBackend.API.Communications.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Communications.Interfaces.ACL;
+using HosteraBackend.API.Iam.Application.ACL;
+using HosteraBackend.API.Iam.Application.CommandServices;
+using HosteraBackend.API.Iam.Application.Internal.CommandServices;
+using HosteraBackend.API.Iam.Application.Internal.OutboundServices;
+using HosteraBackend.API.Iam.Application.Internal.QueryServices;
+using HosteraBackend.API.Iam.Application.QueryServices;
+using HosteraBackend.API.Iam.Domain.Repositories;
+using HosteraBackend.API.Iam.Infrastructure.Hashing.BCrypt.Services;
+using HosteraBackend.API.Iam.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Iam.Infrastructure.Pipeline.Accessors;
+using HosteraBackend.API.Iam.Infrastructure.Pipeline.Filters;
+using HosteraBackend.API.Iam.Infrastructure.Pipeline.Middleware.Extensions;
+using HosteraBackend.API.Iam.Infrastructure.Tokens.Jwt.Configuration;
+using HosteraBackend.API.Iam.Infrastructure.Tokens.Jwt.Services;
+using HosteraBackend.API.Iam.Interfaces.ACL;
 using HosteraBackend.API.Inventory.Application.CommandServices;
 using HosteraBackend.API.Inventory.Application.Internal.CommandServices;
 using HosteraBackend.API.Inventory.Application.Internal.QueryServices;
 using HosteraBackend.API.Inventory.Application.QueryServices;
 using HosteraBackend.API.Inventory.Domain.Repositories;
 using HosteraBackend.API.Inventory.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using HosteraBackend.API.Inventory.Interfaces.Rest.Authorization;
 using HosteraBackend.API.Overview.Application.Internal.OutboundServices.ACL;
 using HosteraBackend.API.Overview.Application.Internal.QueryServices;
 using HosteraBackend.API.Overview.Application.QueryServices;
@@ -35,15 +63,22 @@ using HosteraBackend.API.Rooms.Application.QueryServices;
 using HosteraBackend.API.Rooms.Domain.Repositories;
 using HosteraBackend.API.Rooms.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Rooms.Interfaces.ACL;
+using HosteraBackend.API.Rooms.Interfaces.Rest.Authorization;
 using HosteraBackend.API.Shared.Application.Internal.OutboundServices;
 using HosteraBackend.API.Shared.Domain.Repositories;
+using HosteraBackend.API.Shared.Infrastructure.Health;
+using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Authorization;
 using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.Configuration;
+using HosteraBackend.API.Shared.Infrastructure.Interfaces.Asp.OpenApi;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using HosteraBackend.API.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using HosteraBackend.API.Shared.Infrastructure.Seeding;
 using HosteraBackend.API.Shared.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
+using Resend;
 using Scalar.AspNetCore;
+using IamExternalPropertyService =
+    HosteraBackend.API.Iam.Application.Internal.OutboundServices.ACL.ExternalPropertyService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,7 +88,11 @@ builder.Services.AddRouting(options => options.LowercaseUrls = true);
 
 // Configure Kebab-Case route naming convention for controllers
 builder.Services.AddControllers(options =>
-        options.Conventions.Add(new KebabCaseRouteNamingConvention()))
+    {
+        options.Conventions.Add(new KebabCaseRouteNamingConvention());
+        // Every action only reaches the properties of the organization of the signed-in user
+        options.Filters.Add<PropertyAccessFilter>();
+    })
     .ConfigureApiBehaviorOptions(options =>
         options.InvalidModelStateResponseFactory = InvalidModelStateProblemFactory.ToActionResultFromInvalidModelState);
 
@@ -91,8 +130,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         options.EnableSensitiveDataLogging().EnableDetailedErrors();
 });
 
+// The health check is not a controller endpoint, so it answers without a bearer token
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// The bearer security scheme lets the Scalar reference send the token of the signed-in user
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+    options.AddOperationTransformer<BearerSecurityOperationTransformer>();
+});
 
 // Dependency Injection
 
@@ -109,6 +156,7 @@ builder.Services.AddScoped<IStorageLocationCommandService, StorageLocationComman
 builder.Services.AddScoped<IStorageLocationQueryService, StorageLocationQueryService>();
 builder.Services.AddScoped<IInventoryItemCommandService, InventoryItemCommandService>();
 builder.Services.AddScoped<IInventoryItemQueryService, InventoryItemQueryService>();
+builder.Services.AddScoped<IPropertyScopeResolver, InventoryPropertyScopeResolver>();
 
 // Access Control Bounded Context
 builder.Services.AddScoped<ICredentialRepository, CredentialRepository>();
@@ -120,6 +168,7 @@ builder.Services.AddScoped<IAccessEventRepository, AccessEventRepository>();
 builder.Services.AddScoped<IAccessEventCommandService, AccessEventCommandService>();
 builder.Services.AddScoped<IAccessEventQueryService, AccessEventQueryService>();
 builder.Services.AddScoped<IAccessControlContextFacade, AccessControlContextFacade>();
+builder.Services.AddScoped<IPropertyScopeResolver, AccessControlPropertyScopeResolver>();
 
 // Rooms Bounded Context
 builder.Services.AddScoped<IRatePlanRepository, RatePlanRepository>();
@@ -139,6 +188,7 @@ builder.Services.AddScoped<IStatusPeriodCommandService, StatusPeriodCommandServi
 builder.Services.AddScoped<IStatusPeriodQueryService, StatusPeriodQueryService>();
 builder.Services.AddScoped<IRoomsContextFacade, RoomsContextFacade>();
 builder.Services.AddScoped<ExternalBookingService>();
+builder.Services.AddScoped<IPropertyScopeResolver, RoomsPropertyScopeResolver>();
 
 // Bookings Bounded Context
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
@@ -149,8 +199,24 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentCommandService, PaymentCommandService>();
 builder.Services.AddScoped<IPaymentQueryService, PaymentQueryService>();
 builder.Services.AddScoped<ExternalGuestKeyCardService>();
+builder.Services.AddScoped<ExternalGuestCommunicationService>();
 builder.Services.AddScoped<IStayCommandService, StayCommandService>();
 builder.Services.AddScoped<IBookingsContextFacade, BookingsContextFacade>();
+builder.Services.AddScoped<IPropertyScopeResolver, BookingsPropertyScopeResolver>();
+
+// Communications Bounded Context
+// Resend client: the API token comes from Resend:ApiToken (Resend__ApiToken); without it, emails are skipped
+builder.Services.AddOptions();
+builder.Services.AddHttpClient<ResendClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.Configure<ResendClientOptions>(options =>
+    options.ApiToken = builder.Configuration["Resend:ApiToken"] ?? string.Empty);
+builder.Services.AddTransient<IResend, ResendClient>();
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<BookingConfirmationEmailTemplate>();
+builder.Services.AddScoped<IBookingConfirmationRepository, BookingConfirmationRepository>();
+builder.Services.AddScoped<IBookingConfirmationCommandService, BookingConfirmationCommandService>();
+builder.Services.AddScoped<ICommunicationsContextFacade, CommunicationsContextFacade>();
 
 // Overview Bounded Context
 builder.Services.AddScoped<IOverviewReadRepository, OverviewReadRepository>();
@@ -159,13 +225,32 @@ builder.Services.AddScoped<ExternalInventoryService>();
 builder.Services.AddScoped<ExternalAccessControlService>();
 builder.Services.AddScoped<IOverviewQueryService, OverviewQueryService>();
 
+// IAM Bounded Context
+
+// The secret signs the bearer tokens; deployed environments set it with the TokenSettings__Secret variable
+builder.Services.AddOptions<TokenSettings>()
+    .Bind(builder.Configuration.GetSection(TokenSettings.SectionName))
+    .Validate(settings => settings.HasValidSecret,
+        $"{TokenSettings.SectionName}:Secret must have at least {TokenSettings.SecretMinBytes} bytes.")
+    .ValidateOnStart();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IHashingService, HashingService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IamExternalPropertyService>();
+builder.Services.AddScoped<IUserCommandService, UserCommandService>();
+builder.Services.AddScoped<IUserQueryService, UserQueryService>();
+builder.Services.AddScoped<IAuthenticatedUserAccessor, AuthenticatedUserAccessor>();
+builder.Services.AddScoped<IIamContextFacade, IamContextFacade>();
+
 var app = builder.Build();
 
-// Verify the database exists and create it with its tables when it does not
+// Apply pending migrations on startup: it creates the database when it does not exist and is safe to call when the
+// schema is up to date
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    context.Database.EnsureCreated();
+    context.Database.Migrate();
 
     // A new database receives a demonstration hotel when Hostera:SeedDemoData is true, the default in Development
     if (app.Configuration.GetValue("Hostera:SeedDemoData", app.Environment.IsDevelopment()))
@@ -177,7 +262,8 @@ using (var scope = app.Services.CreateScope())
 if (app.Configuration.GetValue("Hostera:PublishApiReference", app.Environment.IsDevelopment()))
 {
     app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapScalarApiReference(options =>
+        options.AddPreferredSecuritySchemes(BearerSecuritySchemeTransformer.SchemeName));
 }
 
 // Apply CORS Policy
@@ -191,10 +277,16 @@ app.UseRequestLocalization(new RequestLocalizationOptions()
 
 app.UseCors("AllowAllPolicy");
 
+// Require a valid bearer token on every controller endpoint not marked with [AllowAnonymous]. It runs after CORS, so
+// preflight requests are answered first and rejected requests still carry the CORS headers.
+app.UseRequestAuthorization();
+
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health");
 
 app.Run();

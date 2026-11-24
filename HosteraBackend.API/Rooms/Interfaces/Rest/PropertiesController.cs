@@ -1,4 +1,5 @@
 using System.Net.Mime;
+using HosteraBackend.API.Iam.Interfaces.ACL;
 using HosteraBackend.API.Rooms.Application.QueryServices;
 using HosteraBackend.API.Rooms.Domain.Model.Queries;
 using HosteraBackend.API.Rooms.Interfaces.Rest.Resources;
@@ -11,15 +12,20 @@ namespace HosteraBackend.API.Rooms.Interfaces.Rest;
 [Route("api/v1/properties")]
 [Produces(MediaTypeNames.Application.Json)]
 [Tags("Property Endpoints")]
-public class PropertiesController(IPropertyQueryService propertyQueryService) : ControllerBase
+public class PropertiesController(
+    IPropertyQueryService propertyQueryService,
+    IAuthenticatedUserAccessor authenticatedUserAccessor)
+    : ControllerBase
 {
     [HttpGet]
     [EndpointSummary("Get all properties")]
-    [EndpointDescription("Get all the properties")]
+    [EndpointDescription("Get the properties of the organization of the signed-in user, ordered by name")]
     [ProducesResponseType(typeof(IEnumerable<PropertyResource>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllProperties(CancellationToken cancellationToken)
     {
-        var properties = await propertyQueryService.Handle(new GetAllPropertiesQuery(), cancellationToken);
+        var organizationId = authenticatedUserAccessor.AuthenticatedUser?.OrganizationId ?? 0;
+        var query = new GetAllPropertiesByOrganizationIdQuery(organizationId);
+        var properties = await propertyQueryService.Handle(query, cancellationToken);
         return Ok(properties.Select(PropertyResourceFromEntityAssembler.ToResourceFromEntity));
     }
 

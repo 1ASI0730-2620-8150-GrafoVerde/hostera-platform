@@ -94,7 +94,7 @@ public class OverviewQueryService(
     public async Task<(IReadOnlyList<PropertyOverview> Overviews, IReadOnlyList<EDashboardSection> UnavailableSections)>
         Handle(GetAllPropertyOverviewsQuery query, CancellationToken cancellationToken)
     {
-        var properties = await externalPropertyService.FetchAllPropertiesAsync(cancellationToken);
+        var properties = await externalPropertyService.FetchAllPropertiesAsync(query.OrganizationId, cancellationToken);
         var overviews = new List<PropertyOverview>();
         var unavailableSections = new HashSet<EDashboardSection>();
 

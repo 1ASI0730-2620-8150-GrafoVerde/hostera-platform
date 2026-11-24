@@ -10,12 +10,14 @@ namespace HosteraBackend.API.Rooms.Application.ACL;
 /// <summary>
 ///     Facade that other bounded contexts use to read the Rooms bounded context.
 /// </summary>
+/// <param name="propertyQueryService">The property query service</param>
 /// <param name="roomQueryService">The room query service</param>
 /// <param name="roomTypeQueryService">The room type query service</param>
 /// <param name="ratePlanQueryService">The rate plan query service</param>
 /// <param name="statusPeriodQueryService">The status period query service</param>
 /// <param name="statusPeriodCommandService">The status period command service</param>
 public class RoomsContextFacade(
+    IPropertyQueryService propertyQueryService,
     IRoomQueryService roomQueryService,
     IRoomTypeQueryService roomTypeQueryService,
     IRatePlanQueryService ratePlanQueryService,
@@ -23,6 +25,27 @@ public class RoomsContextFacade(
     IStatusPeriodCommandService statusPeriodCommandService)
     : IRoomsContextFacade
 {
+    /// <inheritdoc />
+    public async Task<int?> FetchOrganizationIdByPropertyIdAsync(int propertyId, CancellationToken cancellationToken)
+    {
+        var property = await propertyQueryService.Handle(new GetPropertyByIdQuery(propertyId), cancellationToken);
+        return property?.OrganizationId;
+    }
+
+    /// <inheritdoc />
+    public async Task<int> FetchLatestOrganizationIdAsync(CancellationToken cancellationToken)
+    {
+        var properties = await propertyQueryService.Handle(new GetAllPropertiesQuery(), cancellationToken);
+        return properties.Select(property => property.OrganizationId).DefaultIfEmpty(0).Max();
+    }
+
+    /// <inheritdoc />
+    public async Task<PropertySummary?> FetchPropertyAsync(int propertyId, CancellationToken cancellationToken)
+    {
+        var property = await propertyQueryService.Handle(new GetPropertyByIdQuery(propertyId), cancellationToken);
+        return property is null ? null : new PropertySummary(property.Id, property.Name, property.Currency);
+    }
+
     /// <inheritdoc />
     public async Task<RoomSummary?> FetchRoomAsync(int roomId, CancellationToken cancellationToken)
     {
@@ -36,7 +59,8 @@ public class RoomsContextFacade(
         var roomType = await roomTypeQueryService.Handle(new GetRoomTypeByIdQuery(roomTypeId), cancellationToken);
         return roomType is null
             ? null
-            : new RoomTypeSummary(roomType.Id, roomType.PropertyId, roomType.Capacity, roomType.IsActive);
+            : new RoomTypeSummary(roomType.Id, roomType.PropertyId, roomType.Name, roomType.Capacity,
+                roomType.IsActive);
     }
 
     /// <inheritdoc />

@@ -4,11 +4,24 @@ using HosteraBackend.API.Rooms.Interfaces.ACL;
 namespace HosteraBackend.API.Bookings.Application.Internal.OutboundServices.ACL;
 
 /// <summary>
-///     Anti-corruption service that reads rooms, room types, rate plans and prices from the Rooms bounded context.
+///     Anti-corruption service that reads properties, rooms, room types, rate plans and prices from the Rooms bounded
+///     context.
 /// </summary>
 /// <param name="roomsContextFacade">The facade of the Rooms bounded context.</param>
 public class ExternalRoomService(IRoomsContextFacade roomsContextFacade)
 {
+    /// <summary>
+    ///     Fetches the property of a booking.
+    /// </summary>
+    /// <param name="propertyId">The identifier of the property.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The property, or null when it does not exist.</returns>
+    public async Task<BookedProperty?> FetchPropertyAsync(int propertyId, CancellationToken cancellationToken)
+    {
+        var property = await roomsContextFacade.FetchPropertyAsync(propertyId, cancellationToken);
+        return property is null ? null : new BookedProperty(property.Id, property.Name, property.Currency);
+    }
+
     /// <summary>
     ///     Fetches a room that a booking can hold.
     /// </summary>
@@ -32,7 +45,8 @@ public class ExternalRoomService(IRoomsContextFacade roomsContextFacade)
         var roomType = await roomsContextFacade.FetchRoomTypeAsync(roomTypeId, cancellationToken);
         return roomType is null
             ? null
-            : new BookableRoomType(roomType.Id, roomType.PropertyId, roomType.Capacity, roomType.IsActive);
+            : new BookableRoomType(roomType.Id, roomType.PropertyId, roomType.Name, roomType.Capacity,
+                roomType.IsActive);
     }
 
     /// <summary>
