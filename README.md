@@ -212,15 +212,20 @@ dotnet run --project HosteraBackend.API
 
 ### Database initialization
 
-On startup, the API calls `Database.EnsureCreated()`. When the `hostera` database does not exist, it creates the database with every table and seeds the properties of both demonstration organizations and their staff members. When the database already exists, it changes nothing.
+On startup, the API calls `Database.Migrate()`. When the `hostera` database does not exist, it creates it and applies every migration in `HosteraBackend.API/Migrations`; when it exists, it applies only the migrations it has not run yet, recorded in the `__EFMigrationsHistory` table. With `Hostera:SeedDemoData`, a new database then receives the [demonstration data](#demonstration-data).
 
-Because the project does not use migrations yet, **drop the database after pulling changes that add or modify entities**, and let the API create it again:
+After changing an entity or its mapping, add a migration with the `dotnet-ef` tool pinned in `dotnet-tools.json` and commit it with the change:
+
+```bash
+dotnet tool restore
+dotnet ef migrations add <MigrationName> --project HosteraBackend.API --output-dir Migrations
+```
+
+The next start of the API applies it. A database created before the migrations, by `EnsureCreated`, has no migration history: drop it once and let the API create it again.
 
 ```sql
 DROP DATABASE hostera;
 ```
-
-This removes the data created through the API.
 
 ### Demonstration data
 
@@ -291,6 +296,7 @@ HosteraBackend.API/
   Communications/       Communications bounded context
   Iam/                  IAM bounded context
   Inventory/            Inventory Management bounded context
+  Migrations/           EF Core migrations of the database schema
   Overview/             Overview bounded context
   Rooms/                Rooms & Availability bounded context
   Shared/               Shared building blocks
@@ -367,7 +373,7 @@ On Linux, add `--add-host=host.docker.internal:host-gateway` so the container re
 
 After the deployment, check that `https://<service>.onrender.com/health` returns `200 OK` and that the demonstration accounts can sign in, and set `VITE_HOSTERA_PLATFORM_API_URL` of the frontend to `https://<service>.onrender.com/api/v1`. A free Render service sleeps after a period without requests, so the first request after a pause can take close to a minute.
 
-A database created by an earlier version has no `users` table, because `EnsureCreated` does not change an existing database. Drop the `hostera` database on Aiven before deploying a version that adds entities, such as the IAM context, and let the API create and seed it again.
+Each deployment applies the pending migrations on startup, so the database keeps its data across releases. A database created before the migrations, by `EnsureCreated`, has no migration history: drop the `hostera` database on Aiven once before the first deployment with migrations, and let the API create and seed it again.
 
 
 ## License

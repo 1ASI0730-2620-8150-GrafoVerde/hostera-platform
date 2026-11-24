@@ -22,7 +22,7 @@ Guidelines for maintaining this log:
 | [ADR-005](#adr-005--map-rest-resources-with-static-assemblers) | Map REST resources with static assemblers | Accepted |
 | [ADR-006](#adr-006--persist-with-ef-core-on-mysql-using-repository-and-unit-of-work) | Persist with EF Core on MySQL using Repository and Unit of Work | Accepted |
 | [ADR-007](#adr-007--use-snake_case-database-naming-and-automatic-audit-timestamps) | Use `snake_case` database naming and automatic audit timestamps | Accepted |
-| [ADR-008](#adr-008--create-the-schema-on-startup-with-ensurecreated) | Create the schema on startup with `EnsureCreated` | Accepted |
+| [ADR-008](#adr-008--create-the-schema-on-startup-with-ensurecreated) | Create the schema on startup with `EnsureCreated` | Superseded by ADR-022 |
 | [ADR-009](#adr-009--use-plural-kebab-case-routes-scoped-by-property) | Use plural kebab-case routes scoped by property | Accepted |
 | [ADR-010](#adr-010--use-built-in-openapi-and-scalar) | Use built-in OpenAPI and Scalar | Accepted |
 | [ADR-011](#adr-011--integrate-bounded-contexts-through-anti-corruption-facades) | Integrate bounded contexts through anti-corruption facades | Accepted |
@@ -36,6 +36,7 @@ Guidelines for maintaining this log:
 | [ADR-019](#adr-019--authenticate-requests-with-json-web-tokens-checked-by-a-request-middleware) | Authenticate requests with JSON Web Tokens checked by a request middleware | Accepted |
 | [ADR-020](#adr-020--limit-every-request-to-the-properties-of-the-organization-of-the-user) | Limit every request to the properties of the organization of the user | Accepted |
 | [ADR-021](#adr-021--send-guest-emails-through-resend-on-a-best-effort-basis) | Send guest emails through Resend on a best-effort basis | Accepted |
+| [ADR-022](#adr-022--evolve-the-schema-with-ef-core-migrations-applied-on-startup) | Evolve the schema with EF Core migrations applied on startup | Accepted |
 
 ---
 
@@ -175,7 +176,7 @@ Apply `UseSnakeCaseNamingConvention()` to every table, column, key, and index, w
 
 ## ADR-008 — Create the schema on startup with `EnsureCreated`
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-022](#adr-022--evolve-the-schema-with-ef-core-migrations-applied-on-startup)
 - **Date:** 2026-10-28
 
 ### Context
@@ -426,3 +427,23 @@ Sending is best-effort: a rejected email, a network problem, or a failure to rec
 - (−) The email is sent within the create request, which adds the latency of one call to Resend (bounded by a 10-second timeout).
 - (−) A failed confirmation is not retried automatically.
 - (−) Until a domain is verified in Resend, the default `onboarding@resend.dev` sender only delivers to the Resend account owner.
+
+---
+
+## ADR-022 — Evolve the schema with EF Core migrations applied on startup
+
+- **Status:** Accepted
+- **Date:** 2026-11-24
+
+### Context
+ADR-008 created the schema with `EnsureCreated`, which never changes an existing database. The IAM and Communications contexts added the `users` and `booking_confirmations` tables, so every existing database, including the deployed one, had to be dropped to receive them. With the bounded contexts in place, the model now changes less often, and the deployed database should keep its data across releases.
+
+### Decision
+Describe the schema with EF Core migrations in `HosteraBackend.API/Migrations`, starting from an `InitialCreate` migration of the whole model, and call `Database.Migrate()` on startup instead of `EnsureCreated()`. `Migrate()` creates the database when it does not exist and applies only the migrations it has not recorded in `__EFMigrationsHistory`. The `dotnet-ef` tool is pinned in the `dotnet-tools.json` manifest, so every developer creates migrations with the same version.
+
+### Consequences
+- (+) A change to the model reaches every database, including the deployed one, without dropping it or losing its data.
+- (+) Each schema change is a reviewed file in the history, next to the code that needs it.
+- (+) A new environment still starts without manual steps, and the demonstration data is seeded as before (ADR-017).
+- (−) Every change to an entity or its mapping needs a new migration; forgetting it leaves the database behind the model.
+- (−) A database created by `EnsureCreated` has no migration history, so it must be dropped once before the first start with migrations.
