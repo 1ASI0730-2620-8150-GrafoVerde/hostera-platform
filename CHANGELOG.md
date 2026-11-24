@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-11-24
+
+### Added
+
+- IAM bounded context: user sign-up and sign-in with BCrypt-hashed passwords, bearer tokens signed with `TokenSettings:Secret`, and organization-scoped user endpoints. Two demonstration accounts are seeded, one for each demonstration organization.
+- Arequipa 01, the property of a second demonstration organization, with its own rooms, rates, bookings, payments, inventory, staff credentials, and access events.
+- Communications bounded context: guests receive an email that confirms a new booking, in their preferred language, sent through Resend when `Resend:ApiToken` is set. Every attempt is recorded, and a failed email never fails the booking.
+- Anonymous `GET /health` endpoint that checks the database connection, used by the Render health check.
+- EF Core migrations, with the `dotnet-ef` tool pinned in `dotnet-tools.json`.
+
+### Changed
+
+- Every endpoint except sign-in and sign-up requires a bearer token in the `Authorization` header and answers `401 AuthenticationRequired` without a valid one. The OpenAPI document and the Scalar reference declare the bearer scheme.
+- Users only see and change the properties of their organization: `GET /properties`, the property overviews, and the users are filtered, and any resource of another organization answers `404` like a missing one.
+- The database schema is applied with migrations on startup instead of `EnsureCreated`, so later changes reach existing databases. A database created by 1.0.0 must be dropped once before the first start of 2.0.0.
+- The Render Blueprint checks `/health`, generates `TokenSettings__Secret`, and declares the Resend settings.
+
 ## [1.0.0] - 2026-11-10
 
 ### Added
@@ -22,4 +39,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dockerfile and Render Blueprint to deploy the API with a MySQL database on Aiven.
 - Documentation: README, architecture decision records, class diagram of every bounded context, technical stories, and the MIT license.
 
+[2.0.0]: https://github.com/1ASI0730-2620-8150-GrafoVerde/hostera-platform/releases/tag/2.0.0
 [1.0.0]: https://github.com/1ASI0730-2620-8150-GrafoVerde/hostera-platform/releases/tag/1.0.0
