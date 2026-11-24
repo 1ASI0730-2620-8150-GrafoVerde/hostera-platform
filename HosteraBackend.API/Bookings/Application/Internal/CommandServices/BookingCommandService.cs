@@ -89,7 +89,8 @@ public class BookingCommandService(
             }
 
             // The booking is saved: the guest is emailed a confirmation, and a problem sending it never undoes it
-            await externalGuestCommunicationService.SendBookingConfirmationAsync(booking);
+            if (command.NotifyGuest)
+                await externalGuestCommunicationService.SendBookingConfirmationAsync(booking);
             return new Result<Booking, BookingError>.Success(booking);
         }
     }
