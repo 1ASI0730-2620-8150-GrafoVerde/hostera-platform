@@ -5,6 +5,7 @@ using HosteraBackend.API.Bookings.Application.CommandServices;
 using HosteraBackend.API.Bookings.Domain.Model.Commands;
 using HosteraBackend.API.Bookings.Domain.Model.ValueObjects;
 using HosteraBackend.API.Bookings.Domain.Repositories;
+using HosteraBackend.API.Iam.Domain.Model.ValueObjects;
 using HosteraBackend.API.Iam.Interfaces.ACL;
 using HosteraBackend.API.Inventory.Application.CommandServices;
 using HosteraBackend.API.Inventory.Domain.Model.Commands;
@@ -61,8 +62,12 @@ public class DemoDataSeeder(
     /// <summary>
     ///     The demonstration accounts: the first operates Cartagena 04 and Lima 01, the second operates Arequipa 01.
     /// </summary>
-    private static readonly (string Username, string Password, int OrganizationId)[] DemoAccounts =
-        [("demo.hostera", "HosteraDemo2026", 1), ("demo.arequipa", "HosteraDemo2026", 2)];
+    private static readonly (string Username, string Password, string FullName, EUserRole Role, int OrganizationId)[]
+        DemoAccounts =
+        [
+            ("demo.hostera", "HosteraDemo2026", "Lucía Martín", EUserRole.OperationsManager, 1),
+            ("demo.arequipa", "HosteraDemo2026", "Diego Quispe", EUserRole.Operator, 2)
+        ];
 
     private readonly Dictionary<(int PropertyId, string Name), int> _roomTypeIds = [];
     private readonly Dictionary<(int PropertyId, string Number), int> _roomIds = [];
@@ -73,8 +78,8 @@ public class DemoDataSeeder(
     private int _guestCardNumber = 0xA100;
 
     /// <summary>
-    ///     Creates the missing demonstration accounts and loads the demonstration data when the database has no room
-    ///     types yet.
+    ///     Creates the missing demonstration accounts, gives the existing ones their demonstration full name and role,
+    ///     and loads the demonstration data when the database has no room types yet.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -106,12 +111,20 @@ public class DemoDataSeeder(
 
     private async Task SeedDemoAccountsAsync(CancellationToken cancellationToken)
     {
-        foreach (var (username, password, organizationId) in DemoAccounts)
+        foreach (var (username, password, fullName, role, organizationId) in DemoAccounts)
         {
-            if (await iamContextFacade.FetchUserIdByUsernameAsync(username, cancellationToken) != 0)
+            // An account created before users had a profile gets the demonstration full name and role
+            var userId = await iamContextFacade.FetchUserIdByUsernameAsync(username, cancellationToken);
+            if (userId != 0)
+            {
+                if (!await iamContextFacade.UpdateUserProfileAsync(userId, fullName, role, cancellationToken))
+                    logger.LogError("The profile of the demonstration account {Username} could not be updated.",
+                        username);
                 continue;
+            }
 
-            if (await iamContextFacade.CreateUserAsync(username, password, organizationId, cancellationToken) == 0)
+            if (await iamContextFacade.CreateUserAsync(username, password, fullName, role, organizationId,
+                    cancellationToken) == 0)
                 logger.LogError("The demonstration account {Username} could not be created.", username);
             else
                 logger.LogInformation("The demonstration account {Username} was created.", username);

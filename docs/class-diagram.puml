@@ -2222,14 +2222,25 @@
         package "Domain" as IamDomain {
             class User <<AggregateRoot>> {
                 +UsernameMaxLength: int = 50
+                +FullNameMinLength: int = 2
+                +FullNameMaxLength: int = 100
                 +Id: int
                 +OrganizationId: int
                 +Username: string
                 +PasswordHash: string
-                +User(string username, string passwordHash, int organizationId)
+                +FullName: string
+                +Role: EUserRole
+                +User(string username, string passwordHash, string fullName, EUserRole role, int organizationId)
                 +UpdateUsername(string username): User
                 +UpdatePasswordHash(string passwordHash): User
+                +UpdateProfile(string fullName, EUserRole role): User
             }
+
+            enum EUserRole <<ValueObject>> {
+                OperationsManager
+                Operator
+            }
+            note right of EUserRole : Descriptive only: the role grants no permissions yet
             User ..|> IAuditableEntity
 
             class SignUpCommand <<record>> {
@@ -2237,7 +2248,15 @@
                 +PasswordMaxLength: int = 64
                 +Username: string
                 +Password: string
+                +FullName: string
                 +OrganizationId: int?
+                +Role: EUserRole
+            }
+
+            class UpdateUserProfileCommand <<record>> {
+                +UserId: int
+                +FullName: string
+                +Role: EUserRole
             }
 
             class SignInCommand <<record>> {
@@ -2279,6 +2298,7 @@
             interface IUserCommandService {
                 +Handle(SignInCommand command, CancellationToken cancellationToken): Task<Result<(User, string), IamError>>
                 +Handle(SignUpCommand command, CancellationToken cancellationToken): Task<Result<User, IamError>>
+                +Handle(UpdateUserProfileCommand command, CancellationToken cancellationToken): Task<Result<User, IamError>>
             }
 
             interface IUserQueryService {
@@ -2301,7 +2321,7 @@
             class UserCommandService implements IUserCommandService {
                 +UserCommandService(IUserRepository userRepository, ITokenService tokenService, IHashingService hashingService, ExternalPropertyService externalPropertyService, IUnitOfWork unitOfWork)
             }
-            note right of UserCommandService : A user signed up without an organization starts a new one
+            note right of UserCommandService : A user signed up without an organization starts a new one as its operations manager
 
             class UserQueryService implements IUserQueryService {
                 +UserQueryService(IUserRepository userRepository)
@@ -2364,7 +2384,8 @@
 
         package "Interfaces.ACL" as IamAcl {
             interface IIamContextFacade {
-                +CreateUserAsync(string username, string password, int organizationId, CancellationToken cancellationToken): Task<int>
+                +CreateUserAsync(string username, string password, string fullName, EUserRole role, int organizationId, CancellationToken cancellationToken): Task<int>
+                +UpdateUserProfileAsync(int userId, string fullName, EUserRole role, CancellationToken cancellationToken): Task<bool>
                 +FetchUserIdByUsernameAsync(string username, CancellationToken cancellationToken): Task<int>
                 +FetchUsernameByUserIdAsync(int userId, CancellationToken cancellationToken): Task<string>
                 +FetchOrganizationIdByUserIdAsync(int userId, CancellationToken cancellationToken): Task<int?>
@@ -2400,17 +2421,22 @@
             class SignUpResource <<record>> {
                 +Username: string
                 +Password: string
+                +FullName: string
             }
 
             class UserResource <<record>> {
                 +Id: int
                 +Username: string
                 +OrganizationId: int
+                +FullName: string
+                +Role: string
             }
 
             class AuthenticatedUserResource <<record>> {
                 +Id: int
                 +Username: string
+                +FullName: string
+                +Role: string
                 +OrganizationId: int
                 +Token: string
             }
@@ -2445,6 +2471,8 @@
         IUserRepository ..> User
         IUserCommandService ..> SignInCommand
         IUserCommandService ..> SignUpCommand
+        IUserCommandService ..> UpdateUserProfileCommand
+        User ..> EUserRole
         IUserCommandService ..> IamError
         UserCommandService ..> IUserRepository
         UserCommandService ..> ITokenService

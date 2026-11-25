@@ -26,4 +26,12 @@ public interface IUserCommandService
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The created <see cref="User" />, or the <see cref="IamError" /> that prevented it.</returns>
     Task<Result<User, IamError>> Handle(SignUpCommand command, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Handles the update user profile command.
+    /// </summary>
+    /// <param name="command">The <see cref="UpdateUserProfileCommand" /> command to handle.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The updated <see cref="User" />, or the <see cref="IamError" /> that prevented it.</returns>
+    Task<Result<User, IamError>> Handle(UpdateUserProfileCommand command, CancellationToken cancellationToken);
 }

@@ -4,6 +4,7 @@ using HosteraBackend.API.Iam.Application.Internal.OutboundServices;
 using HosteraBackend.API.Iam.Application.Internal.OutboundServices.ACL;
 using HosteraBackend.API.Iam.Domain.Model.Aggregates;
 using HosteraBackend.API.Iam.Domain.Model.Commands;
+using HosteraBackend.API.Iam.Domain.Model.ValueObjects;
 using HosteraBackend.API.Iam.Domain.Repositories;
 using HosteraBackend.API.Shared.Application.Patterns;
 using HosteraBackend.API.Shared.Domain.Repositories;
@@ -58,7 +59,8 @@ public class UserCommandService(
     /// <inheritdoc />
     /// <remarks>
     ///     A user signed up without an organization starts a new one, whose identifier follows every organization
-    ///     that already has users or properties. It owns no property until one is registered for it.
+    ///     that already has users or properties. It owns no property until one is registered for it, and the user is its
+    ///     operations manager. A user added to an existing organization gets the role of the command.
     /// </remarks>
     public async Task<Result<User, IamError>> Handle(SignUpCommand command, CancellationToken cancellationToken)
     {
@@ -66,11 +68,13 @@ public class UserCommandService(
             return new Result<User, IamError>.Failure(IamError.InvalidInput);
 
         var organizationId = command.OrganizationId ?? await NextOrganizationIdAsync(cancellationToken);
+        var role = command.OrganizationId is null ? EUserRole.OperationsManager : command.Role;
 
         User user;
         try
         {
-            user = new User(command.Username, hashingService.HashPassword(command.Password), organizationId);
+            user = new User(command.Username, hashingService.HashPassword(command.Password), command.FullName, role,
+                organizationId);
         }
         catch (ArgumentException)
         {
@@ -81,6 +85,33 @@ public class UserCommandService(
             return new Result<User, IamError>.Failure(IamError.UsernameAlreadyTaken);
 
         await userRepository.AddAsync(user, cancellationToken);
+        await unitOfWork.CompleteAsync(cancellationToken);
+        return new Result<User, IamError>.Success(user);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<User, IamError>> Handle(UpdateUserProfileCommand command,
+        CancellationToken cancellationToken)
+    {
+        var user = await userRepository.FindByIdAsync(command.UserId, cancellationToken);
+        if (user is null)
+            return new Result<User, IamError>.Failure(IamError.UserNotFound);
+
+        var previousProfile = (user.FullName, user.Role);
+        try
+        {
+            user.UpdateProfile(command.FullName, command.Role);
+        }
+        catch (ArgumentException)
+        {
+            return new Result<User, IamError>.Failure(IamError.InvalidInput);
+        }
+
+        // An unchanged profile is not saved again, so its update time keeps the last real change
+        if ((user.FullName, user.Role) == previousProfile)
+            return new Result<User, IamError>.Success(user);
+
+        userRepository.Update(user);
         await unitOfWork.CompleteAsync(cancellationToken);
         return new Result<User, IamError>.Success(user);
     }
