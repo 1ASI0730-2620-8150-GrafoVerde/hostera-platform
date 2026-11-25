@@ -25,6 +25,15 @@ public class IamContextFacade(IUserCommandService userCommandService, IUserQuery
     }
 
     /// <inheritdoc />
+    public async Task<bool> UpdateUserProfileAsync(int userId, string fullName, EUserRole role,
+        CancellationToken cancellationToken)
+    {
+        var result = await userCommandService.Handle(new UpdateUserProfileCommand(userId, fullName, role),
+            cancellationToken);
+        return result.Fold(_ => true, _ => false);
+    }
+
+    /// <inheritdoc />
     public async Task<int> FetchUserIdByUsernameAsync(string username, CancellationToken cancellationToken)
     {
         var user = await userQueryService.Handle(new GetUserByUsernameQuery(username), cancellationToken);

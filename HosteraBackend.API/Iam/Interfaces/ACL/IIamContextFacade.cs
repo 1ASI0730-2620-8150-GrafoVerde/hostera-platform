@@ -21,6 +21,17 @@ public interface IIamContextFacade
         CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Changes the full name and the role of a user.
+    /// </summary>
+    /// <param name="userId">The identifier of the user.</param>
+    /// <param name="fullName">The new full name, between 2 and 100 characters.</param>
+    /// <param name="role">The new role of the user in the organization.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>True when the user was updated; false when it does not exist or the values are not valid.</returns>
+    Task<bool> UpdateUserProfileAsync(int userId, string fullName, EUserRole role,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Fetches the identifier of a user by username.
     /// </summary>
     /// <param name="username">The username of the user.</param>

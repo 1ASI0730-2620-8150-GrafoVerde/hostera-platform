@@ -78,8 +78,8 @@ public class DemoDataSeeder(
     private int _guestCardNumber = 0xA100;
 
     /// <summary>
-    ///     Creates the missing demonstration accounts and loads the demonstration data when the database has no room
-    ///     types yet.
+    ///     Creates the missing demonstration accounts, gives the existing ones their demonstration full name and role,
+    ///     and loads the demonstration data when the database has no room types yet.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -113,8 +113,15 @@ public class DemoDataSeeder(
     {
         foreach (var (username, password, fullName, role, organizationId) in DemoAccounts)
         {
-            if (await iamContextFacade.FetchUserIdByUsernameAsync(username, cancellationToken) != 0)
+            // An account created before users had a profile gets the demonstration full name and role
+            var userId = await iamContextFacade.FetchUserIdByUsernameAsync(username, cancellationToken);
+            if (userId != 0)
+            {
+                if (!await iamContextFacade.UpdateUserProfileAsync(userId, fullName, role, cancellationToken))
+                    logger.LogError("The profile of the demonstration account {Username} could not be updated.",
+                        username);
                 continue;
+            }
 
             if (await iamContextFacade.CreateUserAsync(username, password, fullName, role, organizationId,
                     cancellationToken) == 0)

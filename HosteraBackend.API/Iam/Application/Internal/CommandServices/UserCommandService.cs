@@ -89,6 +89,33 @@ public class UserCommandService(
         return new Result<User, IamError>.Success(user);
     }
 
+    /// <inheritdoc />
+    public async Task<Result<User, IamError>> Handle(UpdateUserProfileCommand command,
+        CancellationToken cancellationToken)
+    {
+        var user = await userRepository.FindByIdAsync(command.UserId, cancellationToken);
+        if (user is null)
+            return new Result<User, IamError>.Failure(IamError.UserNotFound);
+
+        var previousProfile = (user.FullName, user.Role);
+        try
+        {
+            user.UpdateProfile(command.FullName, command.Role);
+        }
+        catch (ArgumentException)
+        {
+            return new Result<User, IamError>.Failure(IamError.InvalidInput);
+        }
+
+        // An unchanged profile is not saved again, so its update time keeps the last real change
+        if ((user.FullName, user.Role) == previousProfile)
+            return new Result<User, IamError>.Success(user);
+
+        userRepository.Update(user);
+        await unitOfWork.CompleteAsync(cancellationToken);
+        return new Result<User, IamError>.Success(user);
+    }
+
     private async Task<int> NextOrganizationIdAsync(CancellationToken cancellationToken)
     {
         var latestUserOrganizationId = await userRepository.FindLatestOrganizationIdAsync(cancellationToken);
