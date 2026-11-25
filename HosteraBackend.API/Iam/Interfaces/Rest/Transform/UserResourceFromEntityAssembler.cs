@@ -13,10 +13,14 @@ public static class UserResourceFromEntityAssembler
     ///     Converts a <see cref="User" /> aggregate to its <see cref="UserResource" />.
     /// </summary>
     /// <param name="entity">The <see cref="User" /> to convert. Must not be null.</param>
-    /// <returns>A <see cref="UserResource" /> representing the user, without its password hash.</returns>
+    /// <returns>
+    ///     A <see cref="UserResource" /> representing the user, without its password hash and with the role written by
+    ///     name, such as <c>Operator</c>.
+    /// </returns>
     public static UserResource ToResourceFromEntity(User entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
-        return new UserResource(entity.Id, entity.Username, entity.OrganizationId);
+        return new UserResource(entity.Id, entity.Username, entity.OrganizationId, entity.FullName,
+            entity.Role.ToString());
     }
 }

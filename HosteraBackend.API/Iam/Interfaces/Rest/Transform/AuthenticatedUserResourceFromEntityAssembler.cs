@@ -14,12 +14,16 @@ public static class AuthenticatedUserResourceFromEntityAssembler
     /// </summary>
     /// <param name="entity">The signed-in <see cref="User" />. Must not be null.</param>
     /// <param name="token">The token issued to the user. Must not be empty.</param>
-    /// <returns>A new <see cref="AuthenticatedUserResource" /> instance.</returns>
+    /// <returns>
+    ///     A new <see cref="AuthenticatedUserResource" /> instance, with the role written by name, such as
+    ///     <c>OperationsManager</c>.
+    /// </returns>
     /// <exception cref="ArgumentException">Thrown when the token is empty.</exception>
     public static AuthenticatedUserResource ToResourceFromEntity(User entity, string token)
     {
         ArgumentNullException.ThrowIfNull(entity);
         ArgumentException.ThrowIfNullOrEmpty(token);
-        return new AuthenticatedUserResource(entity.Id, entity.Username, entity.OrganizationId, token);
+        return new AuthenticatedUserResource(entity.Id, entity.Username, entity.FullName, entity.Role.ToString(),
+            entity.OrganizationId, token);
     }
 }
