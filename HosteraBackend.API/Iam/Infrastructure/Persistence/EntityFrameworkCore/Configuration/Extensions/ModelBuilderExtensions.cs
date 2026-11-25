@@ -22,6 +22,9 @@ public static class ModelBuilderExtensions
             user.Property(u => u.Username).IsRequired().HasMaxLength(User.UsernameMaxLength);
             // BCrypt hashes are 60 characters long
             user.Property(u => u.PasswordHash).IsRequired().HasMaxLength(100);
+            user.Property(u => u.FullName).IsRequired().HasMaxLength(User.FullNameMaxLength);
+            // The role is stored by name, such as OperationsManager
+            user.Property(u => u.Role).HasConversion<string>().IsRequired().HasMaxLength(30);
             user.HasIndex(u => u.Username).IsUnique();
             user.HasIndex(u => u.OrganizationId);
         });

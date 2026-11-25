@@ -1,3 +1,5 @@
+using HosteraBackend.API.Iam.Domain.Model.ValueObjects;
+
 namespace HosteraBackend.API.Iam.Interfaces.ACL;
 
 /// <summary>
@@ -10,10 +12,12 @@ public interface IIamContextFacade
     /// </summary>
     /// <param name="username">The username of the user.</param>
     /// <param name="password">The password of the user, between 8 and 64 characters.</param>
+    /// <param name="fullName">The full name of the person who uses the account, between 2 and 100 characters.</param>
+    /// <param name="role">The role of the user in the organization.</param>
     /// <param name="organizationId">The identifier of the organization of the user.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The identifier of the created user, or zero when it could not be created.</returns>
-    Task<int> CreateUserAsync(string username, string password, int organizationId,
+    Task<int> CreateUserAsync(string username, string password, string fullName, EUserRole role, int organizationId,
         CancellationToken cancellationToken);
 
     /// <summary>

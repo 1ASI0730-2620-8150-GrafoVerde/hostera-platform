@@ -2,6 +2,7 @@ using HosteraBackend.API.Iam.Application.CommandServices;
 using HosteraBackend.API.Iam.Application.QueryServices;
 using HosteraBackend.API.Iam.Domain.Model.Commands;
 using HosteraBackend.API.Iam.Domain.Model.Queries;
+using HosteraBackend.API.Iam.Domain.Model.ValueObjects;
 using HosteraBackend.API.Iam.Interfaces.ACL;
 
 namespace HosteraBackend.API.Iam.Application.ACL;
@@ -15,11 +16,11 @@ public class IamContextFacade(IUserCommandService userCommandService, IUserQuery
     : IIamContextFacade
 {
     /// <inheritdoc />
-    public async Task<int> CreateUserAsync(string username, string password, int organizationId,
-        CancellationToken cancellationToken)
+    public async Task<int> CreateUserAsync(string username, string password, string fullName, EUserRole role,
+        int organizationId, CancellationToken cancellationToken)
     {
-        var result = await userCommandService.Handle(new SignUpCommand(username, password, organizationId),
-            cancellationToken);
+        var result = await userCommandService.Handle(
+            new SignUpCommand(username, password, fullName, organizationId, role), cancellationToken);
         return result.Fold(user => user.Id, _ => 0);
     }
 
