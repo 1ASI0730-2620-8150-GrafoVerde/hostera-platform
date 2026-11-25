@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-11-25
+
+### Added
+
+- Users have a full name and a role, Operations manager or Operator, returned by sign-in, sign-up, and the user endpoints. The role describes the user and grants no permissions yet.
+- The demonstration accounts are Lucía Martín, operations manager of the first organization, and Diego Quispe, operator of Arequipa 01.
+
+### Changed
+
+- Sign-up requires the full name of the user, from 2 to 100 characters, and the new user manages the operations of the new organization.
+- A migration adds the full name and role to existing users, using the username as their full name.
+
 ## [2.0.0] - 2026-11-24
 
 ### Added
@@ -39,5 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dockerfile and Render Blueprint to deploy the API with a MySQL database on Aiven.
 - Documentation: README, architecture decision records, class diagram of every bounded context, technical stories, and the MIT license.
 
+[2.1.0]: https://github.com/1ASI0730-2620-8150-GrafoVerde/hostera-platform/releases/tag/2.1.0
 [2.0.0]: https://github.com/1ASI0730-2620-8150-GrafoVerde/hostera-platform/releases/tag/2.0.0
 [1.0.0]: https://github.com/1ASI0730-2620-8150-GrafoVerde/hostera-platform/releases/tag/1.0.0
