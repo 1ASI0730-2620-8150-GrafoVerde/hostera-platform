@@ -16,6 +16,6 @@ public static class SignUpCommandFromResourceAssembler
     public static SignUpCommand ToCommandFromResource(SignUpResource resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
-        return new SignUpCommand(resource.Username, resource.Password);
+        return new SignUpCommand(resource.Username, resource.Password, resource.FullName);
     }
 }

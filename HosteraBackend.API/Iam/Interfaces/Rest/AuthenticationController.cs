@@ -33,7 +33,8 @@ public class AuthenticationController(IUserCommandService userCommandService) : 
     [HttpPost("sign-up")]
     [AllowAnonymous]
     [EndpointSummary("Sign up")]
-    [EndpointDescription("Register a new user in a new organization. The password needs 8 to 64 characters")]
+    [EndpointDescription(
+        "Register a new user in a new organization as its operations manager. The password needs 8 to 64 characters and the full name 2 to 100")]
     [ProducesResponseType(typeof(UserResource), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]

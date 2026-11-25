@@ -26,7 +26,7 @@ The `Shared` context holds the building blocks used by every context: the base r
 | Inventory Management | Storage locations, inventory items, their stock per location, and stock adjustments. |
 | Access Control | RFID credentials for guests and staff, staff members, and access events. |
 | Overview | The operational dashboard of a property and the comparison of properties. It only reads other contexts. |
-| IAM | Users, their organization, sign-up, sign-in, bearer tokens, and the rule that limits every request to the properties of the organization of the user. |
+| IAM | Users, their organization, full name and role, sign-up, sign-in, bearer tokens, and the rule that limits every request to the properties of the organization of the user. |
 | Communications | The emails sent to guests: the confirmation of a new booking, sent through Resend, and the record of each one. It has no endpoints. |
 
 ## Endpoints
@@ -103,7 +103,14 @@ Content-Type: application/json
 ```
 
 ```json
-{ "id": 1, "username": "demo.hostera", "organizationId": 1, "token": "eyJhbGciOi..." }
+{
+  "id": 1,
+  "username": "demo.hostera",
+  "fullName": "Lucía Martín",
+  "role": "OperationsManager",
+  "organizationId": 1,
+  "token": "eyJhbGciOi..."
+}
 ```
 
 Send the token in the `Authorization` header of every other request. It expires seven days after it is issued:
@@ -115,7 +122,11 @@ Authorization: Bearer eyJhbGciOi...
 
 A request without a valid token gets `401 Unauthorized` with the `AuthenticationRequired` code and a `WWW-Authenticate: Bearer` header. A wrong username or password gets `401` with the `InvalidCredentials` code.
 
-`POST /api/v1/authentication/sign-up` takes the same body, with a password of 8 to 64 characters, and answers `201 Created` with `{ "id", "username", "organizationId" }`. A user who signs up starts a new organization, which has no properties yet.
+`POST /api/v1/authentication/sign-up` takes `{ "username", "password", "fullName" }`, with a password of 8 to 64 characters and a full name of 2 to 100 characters, and answers `201 Created` with `{ "id", "username", "organizationId", "fullName", "role" }`. A user who signs up starts a new organization, which has no properties yet, and is its operations manager: the server assigns the role, so the request never sends it. A missing or invalid value gets `400 Bad Request` with the `InvalidInput` code.
+
+### Profile
+
+Every user has a full name, such as `Lucía Martín`, and a role, written by name: `OperationsManager` or `Operator`. The frontend shows them in the account menu. The role only describes the user for now: it grants no permissions, and every user reaches all the properties of the organization.
 
 ### Organizations
 
@@ -123,12 +134,12 @@ Every user belongs to one organization and only reaches the properties of that o
 
 ### Demonstration accounts
 
-When `Hostera:SeedDemoData` is `true`, the API creates these accounts if they do not exist:
+When `Hostera:SeedDemoData` is `true`, the API creates these accounts if they do not exist and keeps their full name and role:
 
-| Username | Password | Organization | Properties |
-| --- | --- | --- | --- |
-| `demo.hostera` | `HosteraDemo2026` | 1 | Cartagena 04 and Lima 01 |
-| `demo.arequipa` | `HosteraDemo2026` | 2 | Arequipa 01 |
+| Username | Password | Full name | Role | Organization | Properties |
+| --- | --- | --- | --- | --- | --- |
+| `demo.hostera` | `HosteraDemo2026` | Lucía Martín | `OperationsManager` | 1 | Cartagena 04 and Lima 01 |
+| `demo.arequipa` | `HosteraDemo2026` | Diego Quispe | `Operator` | 2 | Arequipa 01 |
 
 They are public demonstration credentials; do not reuse them for real data.
 
